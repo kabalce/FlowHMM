@@ -17,17 +17,17 @@ class DiscreteHMM(hmm.CategoricalHMM):
         assert discretization_method in DISCRETIZATION_TECHNIQUES, \
             f"discretization method: '{discretization_method}' not allowed, choose one of {DISCRETIZATION_TECHNIQUES}"
         self.discretization_method = discretization_method
-        self.nodes = number_of_nodes
+        self.no_nodes = number_of_nodes
         # Placeholders
         self.nodes = None
 
-    def _provide_nodes_random(self):
+    def _provide_nodes_random(self, X):
+        self.nodes = X[np.random.choice(X.shape[0], size=self.no_nodes, replace=False)]
+
+    def _provide_nodes_latin(self, X):
         pass
 
-    def _provide_nodes_latin(self):
-        pass
-
-    def _provide_nodes_uniform(self):
+    def _provide_nodes_uniform(self, X):
         pass
 
     def _provide_nodes(self, X, force):
@@ -35,24 +35,27 @@ class DiscreteHMM(hmm.CategoricalHMM):
             print("Nodes had been set previously. Use force=True to update them")
             pass
         elif self.discretization_method == 'random':
-            self._provide_nodes_random()
+            self._provide_nodes_random(X)
         elif self.discretization_method == 'latin_cube':
-            self._provide_nodes_latin()
+            self._provide_nodes_latin(X)
         else:
-            self._provide_nodes_uniform()
+            self._provide_nodes_uniform(X)
         self.nodes = self.nodes.reshape(1, -1)
 
     def _discretize(self, X, force):
         self._provide_nodes(X, force)
-        np.argmin((X - self.nodes).abs(), axis=1)
-        pass
+        return np.argmin(np.abs(X - self.nodes), axis=1).reshape(-1, 1)
 
     def fit(self, X, lengths=None, force=False):
-        pass
+        Xd = self._discretize(X, force)
+        super().fit(Xd, lengths)
 
     def _do_mstep(self, stats):
-        pass
+        super()._do_mstep(stats)
 
 
 if __name__ == "__main__":
-    myHMM = DiscreteHMM()
+    hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
+    myHMM = DiscreteHMM('random', 10, 3)
+    obs, hid = hmm.sample(100)
+    myHMM.fit(obs)
