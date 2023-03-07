@@ -1,5 +1,6 @@
 from hmmlearn import hmm
 import numpy as np
+from scipy.stats.qmc import LatinHypercube
 
 
 DISCRETIZATION_TECHNIQUES = ['random', 'latin_cube', 'uniform']
@@ -24,11 +25,11 @@ class DiscreteHMM(hmm.CategoricalHMM):
     def _provide_nodes_random(self, X):
         self.nodes = X[np.random.choice(X.shape[0], size=self.no_nodes, replace=False)]
 
-    def _provide_nodes_latin(self, X):
-        pass
+    def _provide_nodes_latin(self, X):  # each point in a row
+        self.nodes = np.apply_along_axis(lambda x: np.quantile(x[:(-self.no_nodes)], x[(-self.no_nodes):]), 0, np.concatenate([X, LatinHypercube(X.shape[1]).random(self.no_nodes)],  axis=0)).transpose()
 
     def _provide_nodes_uniform(self, X):
-        pass
+        np.random.uniform(size=10).reshape(-1, 1) @ (X.max(axis=0) - X.min(axis=0)).reshape(1, -1) + X.min(axis=0)
 
     def _provide_nodes(self, X, force):
         if not force and (self.nodes is not None):
@@ -54,8 +55,10 @@ class DiscreteHMM(hmm.CategoricalHMM):
         super()._do_mstep(stats)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # TODO: provide a test for an simple example
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
     myHMM = DiscreteHMM('random', 10, 3)
+    myHMM2 = DiscreteHMM('uniform', 10, 3)
+    myHMM3 = DiscreteHMM('latin_cube', 10, 3)
     obs, hid = hmm.sample(100)
     myHMM.fit(obs)
