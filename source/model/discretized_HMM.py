@@ -29,10 +29,10 @@ class DiscreteHMM(hmm.CategoricalHMM):
         self.nodes = np.apply_along_axis(lambda x: np.quantile(x[:(-self.no_nodes)], x[(-self.no_nodes):]), 0, np.concatenate([X, LatinHypercube(self.no_nodes).random(X.shape[1]).transpose()],  axis=0)).transpose()
 
     def _provide_nodes_latin_u(self, X):  # each point in a row
-        self.nodes = (LatinHypercube(10).random(X.shape[1]).transpose() * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]).transpose()
+        self.nodes = (LatinHypercube(self.no_nodes).random(X.shape[1]).transpose() * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]).transpose()
 
     def _provide_nodes_uniform(self, X):
-        self.nodes = (np.random.uniform(size=10*X.shape[1]).reshape(10, X.shape[1]) * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]).transpose()
+        self.nodes = (np.random.uniform(size=self.no_nodes*X.shape[1]).reshape(self.no_nodes, X.shape[1]) * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]).transpose()
 
     def _provide_nodes(self, X, force):
         if not force and (self.nodes is not None):
@@ -50,7 +50,7 @@ class DiscreteHMM(hmm.CategoricalHMM):
 
     def _discretize(self, X, force):
         self._provide_nodes(X, force)
-        return np.argmin(np.abs(X[:, :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1), axis=1).reshape(-1, 1)
+        return np.argmin(np.square(X[:, :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1), axis=1).reshape(-1, 1)
 
     def fit(self, X, lengths=None, force=False):
         Xd = self._discretize(X, force)
