@@ -1,4 +1,4 @@
-from hmmlearn import hmm
+from hmmlearn import hmm, _utils
 from hmmlearn.base import _log
 import numpy as np
 from scipy.stats.qmc import LatinHypercube
@@ -9,14 +9,31 @@ import torch
 
 DISCRETIZATION_TECHNIQUES = ['random', 'latin_cube_u', 'latin_cube_q', 'uniform']
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
-LEARNING_ALGORITHMS = ['em_dense', 'em_discrete', 'cooc']
+LEARNING_ALGORITHMS = ['em', 'em_dense', 'cooc']
 
 # TODO: try reading data out of file when using quasi random nodes
+
+class HmmOptim(torch.nn.module):
+    def __init__(self, cooc_matrix, nodes, means_, covars_,  startprob_, transmat_, trainable: str = ""):
+        # TODO: make customizable and possible dependent on embeddings
+        # TODO: provide initial values!
+        self._means_tensor = torch.tensor(means_, requires_grad=True)
+        self._covars_tensor = torch.tensor(covars_, requires_grad=True)
+        self._startprob_tensor = torch.tensor(startprob_, requires_grad=True)
+        self._transmat_tensor = torch.tensor(transmat_, requires_grad=True)
+        self.cooc_matrix = cooc_matrix
+        self.nodes = nodes
+    def forward(self):
+        # TODO: check & fix formulas
+        dist = torch.distributions.normal.Normal(self._means_tensor, self._covars_tensor)
+        B = dist.log_prob(torch.Tensor(self.nodes))  # B_ij = state i, node j
+        T = self._startprob_tensor * self._startprob_tensor.reshape(1, -1)  # T_kl = A_kl * pi_k
+        return torch.sum(torch.square(self.cooc_matrix - B.T @ T @ B))  # select different metrics?
 
 
 class DiscreteHMM(hmm.GaussianHMM):
     def __init__(self,
-                 discretization_method: str = 'random', number_of_nodes: int = 100, embedding_dim=10,
+                 discretization_method: str = 'random', number_of_nodes: int = 100, embedding_dim=10, learning_alg='em_dense',
                  n_components=1, startprob_prior=1.0, transmat_prior=1.0,
                  covariance_type='diag', min_covar=0.001,
                  means_prior=0, means_weight=0, covars_prior=0.01, covars_weight=1,
@@ -37,6 +54,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         self.no_nodes = number_of_nodes
         self.nodes = None  # Placeholder
         self.optimizer = None  # TODO
+        self.learning_alg = learning_alg
         self.l = embedding_dim
 
     def _provide_nodes_random(self, X):
@@ -90,6 +108,9 @@ class DiscreteHMM(hmm.GaussianHMM):
 
     def _init(self, X, lengths=None):
         super()._init(X)
+
+        # TODO: rewrite into pytorch model
+
         if self._needs_init("m", "means_"):
             self._means_tensor = torch.tensor(self.means_, requires_grad=True)
         if self._needs_init("c", "covars_"):
@@ -109,18 +130,36 @@ class DiscreteHMM(hmm.GaussianHMM):
             if self._needs_init("t", "transmat_"):
                 self._transmat_tensor = torch.tensor(self.transmat_, requires_grad=True)
 
-    def fit(self, X, lengths=None, update_nodes=False, learning_alg='em_dense'):
+        # TODO: init HmmOptim dependent on learning_alg
+
+    def _fit_em_dense(self, X, lengths=None):  # TODO: add for Gaussian Dense HMMs
+        pass
+
+    def _cooccurence(self, Xd, lengths=None):
+        cooc_matrix = torch.tensor(np.zeros(shape=(Xd.max(), Xd.max())))
+        cont_seq_ind = np.ones(shape=Xd.max())
+        cont_seq_ind[lengths.cumsum() - 1] *= 0
+        for i in range(Xd.shape[0] - 1):
+            cooc_matrix[Xd[i], Xd[i+1]] += cont_seq_ind[i]
+        cooc_matrix /= Xd.shape[0]
+        return cooc_matrix
+
+    def _fit_cooc(self, X, lengths=None):
+        cooc_matrix = self._cooccurence(X, lengths)
+        model = None
+        # TODO: add pytorch model - here or in init??
+        pass
+
+    def fit(self, X, lengths=None, update_nodes=False):
         Xd = self._discretize(X, update_nodes)
-        if learning_alg == 'em_dense':
-            super().fit(self.nodes.T[Xd], lengths)  # TODO
-        elif learning_alg == 'em_discrete':
-            pass
-        elif learning_alg == 'cooc':
-            pass
+        if self.learning_alg == 'em':
+            super().fit(self.nodes.T[Xd], lengths)
+        elif self.learning_alg == 'em_dense':
+            self._fit_em_dense(X, lengths)
+        elif self.learning_alg == 'cooc':
+            self._fit_cooc(X, lengths)
         else:
-            _log.error(f'Learning algorithm {learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}')
-    def _do_mstep(self, stats):  # TODO
-        super()._do_mstep(stats)
+            _log.error(f'Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}')
 
 
 if __name__ == "__main__":
