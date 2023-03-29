@@ -5,6 +5,8 @@ from scipy.stats.qmc import LatinHypercube
 # import tensorflow as tf
 import torch
 
+# czy jest hmm w torchu już zaimplementowany
+# TYPOWANIE, DOCSTRINGI
 # TODO: add possible embeddings (?)
 
 DISCRETIZATION_TECHNIQUES = ['random', 'latin_cube_u', 'latin_cube_q', 'uniform']
@@ -13,21 +15,24 @@ LEARNING_ALGORITHMS = ['em', 'em_dense', 'cooc']
 
 # TODO: try reading data out of file when using quasi random nodes
 
-class HmmOptim(torch.nn.module):
-    def __init__(self, cooc_matrix, nodes, means_, covars_,  startprob_, transmat_, trainable: str = ""):
+class HmmOptim(torch.nn.Module):
+    def __init__(self, cooc_matrix, nodes,
+                 means_, covars_, startprob_, transmat_,  # Initial values
+                 trainable: str = ""):
         # TODO: make customizable and possible dependent on embeddings
         # TODO: provide initial values!
-        self._means_tensor = torch.tensor(means_, requires_grad=True)
-        self._covars_tensor = torch.tensor(covars_, requires_grad=True)
-        self._startprob_tensor = torch.tensor(startprob_, requires_grad=True)
-        self._transmat_tensor = torch.tensor(transmat_, requires_grad=True)
+        self._means_tensor = torch.nn.Parameter(means_, requires_grad=True)  # PARAMETERS, propaguj
+        self._covars_tensor = torch.nn.Parameter(covars_, requires_grad=True)
+        self._startprob_tensor = torch.nn.Parameter(startprob_, requires_grad=True)
+        self._transmat_tensor = torch.nn.Parameter(transmat_, requires_grad=True)
         self.cooc_matrix = cooc_matrix
         self.nodes = nodes
     def forward(self):
-        # TODO: check & fix formulas
+        # TODO
+        # for now it's only a scratch of the forward propagation
         dist = torch.distributions.normal.Normal(self._means_tensor, self._covars_tensor)
         B = dist.log_prob(torch.Tensor(self.nodes))  # B_ij = state i, node j
-        T = self._startprob_tensor * self._startprob_tensor.reshape(1, -1)  # T_kl = A_kl * pi_k
+        T = self._startprob_tensor * self._startprob_tensor.reshape(1, -1)  # T_kl = A_kl * pi_k  # Apply the softmax somehow
         return torch.sum(torch.square(self.cooc_matrix - B.T @ T @ B))  # select different metrics?
 
 
