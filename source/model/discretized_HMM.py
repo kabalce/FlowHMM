@@ -8,17 +8,17 @@ import torch
 
 # czy jest hmm w torchu już zaimplementowany
 # TYPOWANIE, DOCSTRINGI
-# TODO: add possible embeddings (?)
 
 DISCRETIZATION_TECHNIQUES = ['random', 'latin_cube_u', 'latin_cube_q', 'uniform']
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ['em', 'em_dense', 'cooc']
 
 # TODO: try reading data out of file when using quasi random nodes
-
+# TODO: torch model with embeddings in separate class
 
 class HmmOptim(torch.nn.Module):
-    def __init__(self, means_=None, covars_=None, startprob_=None, transmat_=None,  # Initial values
+    def __init__(self, n_components, n_dim,
+                 means_=None, covars_=None, startprob_=None, transmat_=None,  # Initial values
                  trainable: str = ""):
         """
         TODO
@@ -34,12 +34,24 @@ class HmmOptim(torch.nn.Module):
         # TODO: make customizable and possible dependent on embeddings
         # TODO: provide initial values!
         # TODO: init parameters with specified values or random values (if None)
+        means = means_ if means_ is not None else \
+            np.random.standard_normal(n_components * n_dim).reshape(n_components, n_dim)
+
+        covar_L = np.linalg.cholesky(covars_) if covars_ is not None else \
+            np.tril(np.random.standard_normal(n_components * n_dim ** 2).reshape(n_components, n_dim, n_dim))
+
+        transmat = transmat_ if transmat_ is not None else \
+            np.random.standard_normal(n_components * n_components).reshape(n_components, n_components)
+        transmat /= transmat.sum(axis=1)
+
+        startprob = startprob_ if startprob_ is not None else \
+            np.random.standard_normal(n_components)
+        startprob /= startprob.sum()
+
         self.trainable = trainable
-        self._means_tensor = torch.nn.Parameter(means_, requires_grad=True)  # PARAMETERS, propaguj
-        self._covars_tensor = torch.nn.Parameter(covars_, requires_grad=True)
-        # self._startprob_tensor = torch.nn.Parameter(startprob_, requires_grad=False)
-        # self._transmat_tensor = torch.nn.Parameter(transmat_, requires_grad=False)
-        self._S_unconstrained = torch.nn.Parameter(np.log(transmat_ * startprob_), requires_grad=True)  # TODO: or embedding
+        self._means_tensor = torch.nn.Parameter(means, requires_grad="m" in trainable)  # PARAMETERS, propaguj
+        self._covar_L_tensor = torch.nn.Parameter(covar_L, requires_grad="c" in trainable)
+        self._S_unconstrained = torch.nn.Parameter(np.log(transmat * startprob), requires_grad="t" in trainable)
 
     def _check_trainable(self, code):
         return code in self.trainable
@@ -47,11 +59,12 @@ class HmmOptim(torch.nn.Module):
     def forward(self, nodes: npt.NDArray):
         """
         TODO
-        :return:
+        :return: cooc matrix from parameters
         """
-        distributions = [torch.distributions.MultivariateNormal(torch.tensor(self.means_[i]),
-                                                                torch.tensor(self.covars_[i])) for i in
-                         range(self.means_.shape[0])]
+        covars = self._covar_L_tensor @ self._covar_L_tensor.T
+        distributions = [torch.distributions.MultivariateNormal(self._means_tensor[i],
+                                                                covars[i]) for i in
+                         range(self._means_tensor.shape()[0])]
 
         B = torch.nn.functional.normalize(
             torch.cat(
@@ -215,7 +228,7 @@ class DiscreteHMM(hmm.GaussianHMM):
             if self._needs_init(e, f"{e}_"):
                 setattr(self, f"{e}_", np.random.standard_normal(self.l * self.n_components).reshape(self.l, self.n_components))
 
-        torch_inits = dict()
+        torch_inits = dict(n_components=self.n_components)
 
         if self._needs_init("m", "means_", True):
             torch_inits['means_'] = self.means_
@@ -247,8 +260,10 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param lengths:
         :return:
         """
-        cooc_matrix = torch.tensor(np.zeros(shape=(Xd.max(), Xd.max())))
-        cont_seq_ind = np.ones(shape=Xd.max())
+        cooc_matrix = np.zeros(shape=(Xd.max() + 1, Xd.max() + 1))
+        cont_seq_ind = np.ones(shape=Xd.shape[0])
+        if lengths is None:
+            lengths = np.array([Xd.shape[0]])
         cont_seq_ind[lengths.cumsum() - 1] *= 0
         for i in range(Xd.shape[0] - 1):
             cooc_matrix[Xd[i], Xd[i+1]] += cont_seq_ind[i]
@@ -279,17 +294,17 @@ class DiscreteHMM(hmm.GaussianHMM):
         elif self.learning_alg == 'em_dense':
             self._fit_em_dense(X, lengths)
         elif self.learning_alg == 'cooc':
-            self._fit_cooc(X, lengths)
+            self._fit_cooc(Xd, lengths)
         else:
             _log.error(f'Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}')
 
 
 if __name__ == "__main__":
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
-    myHMM = DiscreteHMM('random', 10, 3)
-    myHMM2 = DiscreteHMM('uniform', 10, 3)
-    myHMM3 = DiscreteHMM('latin_cube_u', 10, 3)
-    myHMM4 = DiscreteHMM('latin_cube_q', 10, 3)
+    myHMM = DiscreteHMM('random', 10, 3,  learning_alg='cooc')
+    myHMM2 = DiscreteHMM('uniform', 10, 3,  learning_alg='cooc')
+    myHMM3 = DiscreteHMM('latin_cube_u', 10, 3,  learning_alg='cooc')
+    myHMM4 = DiscreteHMM('latin_cube_q', 10, 3,  learning_alg='cooc')
     obs, hid = hmm.sample(100)
     myHMM.fit(obs)
     myHMM2.fit(obs)
