@@ -1,6 +1,7 @@
-from hmmlearn import hmm, _utils
+from hmmlearn import hmm
 from hmmlearn.base import _log
 import numpy as np
+import numpy.typing as npt
 from scipy.stats.qmc import LatinHypercube
 # import tensorflow as tf
 import torch
@@ -15,30 +16,64 @@ LEARNING_ALGORITHMS = ['em', 'em_dense', 'cooc']
 
 # TODO: try reading data out of file when using quasi random nodes
 
+
 class HmmOptim(torch.nn.Module):
-    def __init__(self, cooc_matrix, nodes,
-                 means_, covars_, startprob_, transmat_,  # Initial values
+    def __init__(self, means_=None, covars_=None, startprob_=None, transmat_=None,  # Initial values
                  trainable: str = ""):
+        """
+        TODO
+        :param cooc_matrix:
+        :param nodes:
+        :param means_:
+        :param covars_:
+        :param startprob_:
+        :param transmat_:
+        :param trainable:
+        """
+        super().__init__()
         # TODO: make customizable and possible dependent on embeddings
         # TODO: provide initial values!
+        # TODO: init parameters with specified values or random values (if None)
+        self.trainable = trainable
         self._means_tensor = torch.nn.Parameter(means_, requires_grad=True)  # PARAMETERS, propaguj
         self._covars_tensor = torch.nn.Parameter(covars_, requires_grad=True)
-        self._startprob_tensor = torch.nn.Parameter(startprob_, requires_grad=True)
-        self._transmat_tensor = torch.nn.Parameter(transmat_, requires_grad=True)
-        self.cooc_matrix = cooc_matrix
-        self.nodes = nodes
-    def forward(self):
-        # TODO
-        # for now it's only a scratch of the forward propagation
-        dist = torch.distributions.normal.Normal(self._means_tensor, self._covars_tensor)
-        B = dist.log_prob(torch.Tensor(self.nodes))  # B_ij = state i, node j
-        T = self._startprob_tensor * self._startprob_tensor.reshape(1, -1)  # T_kl = A_kl * pi_k  # Apply the softmax somehow
-        return torch.sum(torch.square(self.cooc_matrix - B.T @ T @ B))  # select different metrics?
+        # self._startprob_tensor = torch.nn.Parameter(startprob_, requires_grad=False)
+        # self._transmat_tensor = torch.nn.Parameter(transmat_, requires_grad=False)
+        self._S_unconstrained = torch.nn.Parameter(np.log(transmat_ * startprob_), requires_grad=True)  # TODO: or embedding
+
+    def _check_trainable(self, code):
+        return code in self.trainable
+
+    def forward(self, nodes: npt.NDArray):
+        """
+        TODO
+        :return:
+        """
+        distributions = [torch.distributions.MultivariateNormal(torch.tensor(self.means_[i]),
+                                                                torch.tensor(self.covars_[i])) for i in
+                         range(self.means_.shape[0])]
+
+        B = torch.nn.functional.normalize(
+            torch.cat(
+                [dist.log_prob(torch.Tensor(nodes.T)).reshape(1, -1) for dist in distributions],
+                dim=0),
+            dim=1)
+
+        S = torch.softmax(self._S_unconstrained, dim=1)
+        return B.T @ S @ B
+
+
+    def _get_transmat(self):
+        """
+        TODO: compute standard transition matrix from self._S_unconstrained
+        :return:
+        """
+        pass
 
 
 class DiscreteHMM(hmm.GaussianHMM):
     def __init__(self,
-                 discretization_method: str = 'random', number_of_nodes: int = 100, embedding_dim=10, learning_alg='em_dense',
+                 discretization_method: str = 'random', no_nodes: int = 100, l=None, learning_alg='em_dense',
                  n_components=1, startprob_prior=1.0, transmat_prior=1.0,
                  covariance_type='diag', min_covar=0.001,
                  means_prior=0, means_weight=0, covars_prior=0.01, covars_weight=1,
@@ -56,29 +91,58 @@ class DiscreteHMM(hmm.GaussianHMM):
             f"discretization method: '{discretization_method}' not allowed, choose one of {DISCRETIZATION_TECHNIQUES}"
 
         self.discretization_method = discretization_method
-        self.no_nodes = number_of_nodes
+        self.no_nodes = no_nodes
         self.nodes = None  # Placeholder
         self.optimizer = None  # TODO
+        self.model = None
         self.learning_alg = learning_alg
-        self.l = embedding_dim
+        # TODO: make it optional
+        self.l = l
+        self.z_, self.u_ = None, None
 
     def _provide_nodes_random(self, X):
+        """
+        TODO
+        :param X:
+        :return:
+        """
         self.nodes = X[np.random.choice(X.shape[0], size=self.no_nodes, replace=False)].transpose()
 
     def _provide_nodes_latin_q(self, X):  # each point in a row
+        """
+        TODO
+        :param X:
+        :return:
+        """
         self.nodes = np.apply_along_axis(
             lambda x: np.quantile(x[:(-self.no_nodes)], x[(-self.no_nodes):]), 0,
             np.concatenate([X, LatinHypercube(self.no_nodes).random(X.shape[1]).transpose()], axis=0)).transpose()
 
     def _provide_nodes_latin_u(self, X):  # each point in a row
+        """
+        TODO
+        :param X:
+        :return:
+        """
         self.nodes = (LatinHypercube(self.no_nodes).random(X.shape[1]).transpose() *
                       (X.max(axis=0) - X.min(axis=0))[np.newaxis, :] + X.min(axis=0)[np.newaxis, :]).transpose()
 
     def _provide_nodes_uniform(self, X):
+        """
+        TODO
+        :param X:
+        :return:
+        """
         self.nodes = (np.random.uniform(size=self.no_nodes * X.shape[1]).reshape(self.no_nodes, X.shape[1]) *
                       (X.max(axis=0) - X.min(axis=0))[np.newaxis, :] + X.min(axis=0)[np.newaxis, :]).transpose()
 
     def _provide_nodes(self, X, force):
+        """
+        TODO
+        :param X:
+        :param force:
+        :return:
+        """
         if not force and (self.nodes is not None):
             if self.verbose:
                 print("Nodes have been already set. Use force=True to update them")
@@ -93,54 +157,96 @@ class DiscreteHMM(hmm.GaussianHMM):
             self._provide_nodes_uniform(X)
 
     def _discretize(self, X, force):
+        """
+        TODO
+        :param X:
+        :param force:
+        :return:
+        """
         self._provide_nodes(X, force)
         return np.argmin(np.square(X[:, :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1), axis=1).reshape(-1)
 
-    def _needs_init(self, code, name, recheck=True):
-        result = True if code in self.init_params else False
-
-        if code == "t":
-            if "s" in self.init_params:
-                _log.warning("Optimizing separately attribute 'startprob_' ignores the stationarity requirement")
-        if code in ["t", "s"]:
-            if "z" in self.init_params and "u" in self.init_params:
-                _log.warning("Attributes 'startprob_' and 'transmat_' will be initialized based on "
-                             "attributes 'u_' and 'z_'")
-                result = False
-        if code in ["z", "u"]:
-            result = (code in self.params) and (code in self.init_params)
+    def _needs_init(self, code, name, torch_check=False):
+        """
+        TODO
+        :param code:
+        :param name:
+        :param torch_check:
+        :return:
+        """
+        if torch_check:
+            result = True if code in self.init_params else False
+            if code == "t":
+                if "s" in self.init_params:
+                    _log.warning("Optimizing separately attribute 'startprob_' ignores the stationarity requirement")
+            if code in ["t", "s"]:
+                if "z" in self.init_params and "u" in self.init_params:
+                    _log.warning("Attributes 'startprob_' and 'transmat_' will be initialized based on "
+                                 "attributes 'u_' and 'z_'")
+                    result = False
+            if code in ["z", "u"]:
+                result = (code in self.params) and (code in self.init_params)
+        else:
+            result = super()._needs_init(code, name)
         return result
 
+    @staticmethod
+    def compute_stationary(matrix):  # TODO: or maybe it should be a separate function -- think of it
+        """
+        TODO
+        :param matrix:
+        :return:
+        """
+        vals, vecs = np.linalg.eig(matrix.T)
+        vec1 = vecs[:, np.isclose(vals, 1)].reshape(-1)
+        stationary = vec1 / vec1.sum()
+        return stationary.real
+
     def _init(self, X, lengths=None):
-        super()._init(X)
+        """
+        TODO
+        :param X:
+        :param lengths:
+        :return:
+        """
+        super()._init(X)  # init k-means with a batch of data (of some maximum size)?
 
-        # TODO: rewrite into pytorch model
+        for e in ['z', 'u']:
+            if self._needs_init(e, f"{e}_"):
+                setattr(self, f"{e}_", np.random.standard_normal(self.l * self.n_components).reshape(self.l, self.n_components))
 
-        if self._needs_init("m", "means_"):
-            self._means_tensor = torch.tensor(self.means_, requires_grad=True)
-        if self._needs_init("c", "covars_"):
-            self._covars_tensor = torch.tensor(self.covars_, requires_grad=True)
+        torch_inits = dict()
 
-        if self._needs_init("z", "z_") and self._needs_init("u", "u_"):
-            # self._z_tensor = torch.tensor(None, requires_grad=True)  # TODO: use embedding lentgh l
-            # self._u_tensor = torch.tensor(None, requires_grad=True)
-            if self._needs_init("s", "startprob_"):
-                self._startprob_tensor = torch.tensor(self.startprob_,
-                                                      requires_grad=False)  # TODO: specify based on z, u
-            if self._needs_init("t", "transmat_"):
-                self._transmat_tensor = torch.tensor(self.transmat_, requires_grad=False)
-        else:
-            if self._needs_init("s", "startprob_"):
-                self._startprob_tensor = torch.tensor(self.startprob_, requires_grad=True)
-            if self._needs_init("t", "transmat_"):
-                self._transmat_tensor = torch.tensor(self.transmat_, requires_grad=True)
+        if self._needs_init("m", "means_", True):
+            torch_inits['means_'] = self.means_
+        if self._needs_init("c", "covars_", True):
+            torch_inits['covars_'] = self.covars_
+        if self._needs_init("z", "z_", True) and self._needs_init("u", "u_", True):
+            torch_inits['z_'] = self.z_
+            torch_inits['u_'] = self.u_
+        elif self._needs_init("t", "transmat_", True):
+            torch_inits['startprob_'] = self.compute_stationary(self.transmat_)
+            torch_inits['transmat_'] = self.startprob_
 
-        # TODO: init HmmOptim dependent on learning_alg
+        if self.learning_alg == "cooc":
+            self.model = HmmOptim(**torch_inits)
 
     def _fit_em_dense(self, X, lengths=None):  # TODO: add for Gaussian Dense HMMs
+        """
+        TODO
+        :param X:
+        :param lengths:
+        :return:
+        """
         pass
 
     def _cooccurence(self, Xd, lengths=None):
+        """
+        TODO
+        :param Xd:
+        :param lengths:
+        :return:
+        """
         cooc_matrix = torch.tensor(np.zeros(shape=(Xd.max(), Xd.max())))
         cont_seq_ind = np.ones(shape=Xd.max())
         cont_seq_ind[lengths.cumsum() - 1] *= 0
@@ -150,12 +256,23 @@ class DiscreteHMM(hmm.GaussianHMM):
         return cooc_matrix
 
     def _fit_cooc(self, X, lengths=None):
+        """
+        TODO
+        :param X:
+        :param lengths:
+        :return:
+        """
         cooc_matrix = self._cooccurence(X, lengths)
-        model = None
-        # TODO: add pytorch model - here or in init??
         pass
 
     def fit(self, X, lengths=None, update_nodes=False):
+        """
+        TODO
+        :param X:
+        :param lengths:
+        :param update_nodes:
+        :return:
+        """
         Xd = self._discretize(X, update_nodes)
         if self.learning_alg == 'em':
             super().fit(self.nodes.T[Xd], lengths)
@@ -178,3 +295,9 @@ if __name__ == "__main__":
     myHMM2.fit(obs)
     myHMM3.fit(obs)
     myHMM4.fit(obs)
+
+# softmax - mozna jeszcze optymalizować mnożnik w wykłądniku - sprawdź różne lambdy
+# twierdzenie że cooc działa przy dostatecznej liczbie danych (dla konkretnych liczb stanów)
+# nmf - jednoznaczność
+
+# D. Wegner, B. Chmiela - zobacz prace
