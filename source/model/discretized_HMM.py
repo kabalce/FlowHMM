@@ -3,7 +3,6 @@ from hmmlearn.base import _log
 import numpy as np
 import numpy.typing as npt
 from scipy.stats.qmc import LatinHypercube
-# import tensorflow as tf
 import torch
 
 # czy jest hmm w torchu już zaimplementowany
@@ -78,23 +77,35 @@ class HmmOptim(torch.nn.Module):
                 dim=0),
             dim=1)
 
-        S = torch.softmax(self._S_unconstrained, dim=1)
+        Ss = torch.exp(self._S_unconstrained)
+        S = Ss / Ss.sum()
         return B.T @ S @ B
 
+    @staticmethod
+    def _to_numpy(tens):
+        return tens.cpu().detach().numpy()
 
-    def _get_transmat(self):
+    def get_model_params(self):
         """
         TODO: compute standard transition matrix from self._S_unconstrained
         :return:
         """
-        pass
+        # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
+        Ss = torch.exp(self._S_unconstrained)
+        S = Ss / Ss.sum()
+        startprob = torch.sum(S, dim=1)
+        transmat = S / startprob.unsqueeze(1)
+
+        covars = self._covar_L_tensor @ torch.transpose(self._covar_L_tensor, 1, 2)
+        means = self._means_tensor
+        return self._to_numpy(means), self._to_numpy(covars), self._to_numpy(transmat), self._to_numpy(startprob)
 
 
 class DiscreteHMM(hmm.GaussianHMM):
     def __init__(self,
                  discretization_method: str = 'random', no_nodes: int = 100, l=None, learning_alg='em_dense',
                  n_components=1, startprob_prior=1.0, transmat_prior=1.0,
-                 covariance_type='diag', min_covar=0.001,
+                 covariance_type='full', min_covar=0.001,  # TODO: implement different covariance types
                  means_prior=0, means_weight=0, covars_prior=0.01, covars_weight=1,
                  algorithm='viterbi', random_state=None, n_iter=10, tol=0.01, verbose=False, params='tmc',  # TODO: default without 's'
                  init_params='tmc', implementation='log') -> None:
@@ -266,6 +277,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param lengths:
         :return:
         """
+        # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 88 - skąd taki dzielnik??
         cooc_matrix = np.zeros(shape=(Xd.max() + 1, Xd.max() + 1))
         cont_seq_ind = np.ones(shape=Xd.shape[0])
         if lengths is None:
@@ -273,10 +285,10 @@ class DiscreteHMM(hmm.GaussianHMM):
         cont_seq_ind[lengths.cumsum() - 1] *= 0
         for i in range(Xd.shape[0] - 1):
             cooc_matrix[Xd[i], Xd[i+1]] += cont_seq_ind[i]
-        cooc_matrix /= Xd.shape[0]
+        cooc_matrix /= cooc_matrix.sum()
         return cooc_matrix
 
-    def _fit_cooc(self, X, lengths=None):
+    def _fit_cooc(self, X, Xc, lengths=None):
         """
         TODO
         :param X:
@@ -284,13 +296,23 @@ class DiscreteHMM(hmm.GaussianHMM):
         :return:
         """
         # TODO: iterate
+        # TODO: loguj do convergence monitora raz na jakiś czas
+        max_epoch = 10000  # TODO: parametrize
         cooc_matrix = torch.tensor(self._cooccurence(X, lengths))
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9)
-        optimizer.zero_grad()
-        torch.nn.KLDivLoss(reduction='sum')(self.model(self.nodes), cooc_matrix).backward()
-        optimizer.step()
-        # TODO: derive parameters
-        pass
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9, maximize=False)
+        for i in range(max_epoch):
+            optimizer.zero_grad()
+            torch.nn.KLDivLoss(reduction='sum')(self.model(self.nodes), cooc_matrix).backward()
+            optimizer.step()
+            if i % 100 == 0:  # TODO: select properly
+                self.means_, self.covars_, self.transmat_, self.startprob_ = self.model.get_model_params()
+                score = self.score(Xc, lengths)
+                print(score)  # TODO: if verbose...
+                self.monitor_.report(score)
+                if self.monitor_.converged:
+                    break
+        return self
+
 
     def fit(self, X, lengths=None, update_nodes=False):
         """
@@ -307,7 +329,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         elif self.learning_alg == 'em_dense':
             self._fit_em_dense(X, lengths)
         elif self.learning_alg == 'cooc':
-            self._fit_cooc(Xd, lengths)
+            self._fit_cooc(Xd, X, lengths)
         else:
             _log.error(f'Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}')
 
