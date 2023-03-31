@@ -5,39 +5,47 @@ import numpy.typing as npt
 from scipy.stats.qmc import LatinHypercube
 import torch
 
-# czy jest hmm w torchu już zaimplementowany
-# TYPOWANIE, DOCSTRINGI
+# czy jest hmm w torchu już zaimplementowany:
+# http://torch.ch/torch3/manual/HMM.html
+# https://github.com/nwams/Hidden_Markov_Model-in-PyTorch
+# could be useful also: https://pyro4ci.readthedocs.io/en/latest/_modules/pyro/distributions/hmm.html
+
+# hints for implementation: TYPOWANIE, DOCSTRINGI
+
+
+# Future features:
+# try reading data out of file when using quasi random nodes
+# torch model with embeddings in separate class
+
 
 DISCRETIZATION_TECHNIQUES = ['random', 'latin_cube_u', 'latin_cube_q', 'uniform']
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ['em', 'em_dense', 'cooc']
 
-# TODO: try reading data out of file when using quasi random nodes
-# TODO: torch model with embeddings in separate class
 
 class HmmOptim(torch.nn.Module):
     def __init__(self, n_components, n_dim,
                  means_=None, covars_=None, startprob_=None, transmat_=None,  # Initial values
                  trainable: str = ""):
         """
-        TODO
-        :param cooc_matrix:
-        :param nodes:
-        :param means_:
-        :param covars_:
-        :param startprob_:
-        :param transmat_:
-        :param trainable:
+        Initialize torch.nn.Module for HMM parameters estimation
+        :param n_components: number of hidden states
+        :param n_dim: dimensionality of observations
+        :param means_: initial value for means
+        :param covars_: initial value for cavariances
+        :param startprob_: initial value for starting probability
+        :param transmat_: initial value for transition matrix
+        :param trainable: string containing codes for parameters that need estimation
         """
         super().__init__()
-        # TODO: make customizable and possible dependent on embeddings
-        # TODO: provide initial values!
-        # TODO: init parameters with specified values or random values (if None)
+
+        # TODO: implement various covariance types (now works only for full)
+
         means = means_ if means_ is not None else \
             np.random.standard_normal(n_components * n_dim).reshape(n_components, n_dim)
 
         covar_L = np.linalg.cholesky(covars_) if covars_ is not None else \
-            np.tril(np.random.standard_normal(n_components * n_dim ** 2).reshape(n_components, n_dim, n_dim))
+            np.tril(np.random.standard_normal(n_components * n_dim ** 2).reshape((n_components, n_dim, n_dim)))
 
         transmat = transmat_ if transmat_ is not None else \
             np.random.standard_normal(n_components * n_components).reshape(n_components, n_components)
@@ -50,22 +58,15 @@ class HmmOptim(torch.nn.Module):
         self.n_components = n_components
         self.n_dim = n_dim
         self.trainable = trainable
-        self._means_tensor = torch.nn.Parameter(torch.tensor(means), requires_grad="m" in trainable)  # PARAMETERS, propaguj
+        self._means_tensor = torch.nn.Parameter(torch.tensor(means), requires_grad="m" in trainable)
         self._covar_L_tensor = torch.nn.Parameter(torch.tensor(covar_L), requires_grad="c" in trainable)
         self._S_unconstrained = torch.nn.Parameter(torch.tensor(np.log(transmat * startprob)), requires_grad="t" in trainable)
 
-    def _check_trainable(self, code):
-        return code in self.trainable
-
-    # def covar_from_L(self):
-    #     return torch.cat([(self._covar_L_tensor[i] @ self._covar_L_tensor[i]).reshape(self.n_dim, self.n_dim, 1) for i in range(self.n_components)], dim=2)
-
     def forward(self, nodes: npt.NDArray):
         """
-        TODO
-        :return: cooc matrix from parameters
+        Calculate the forward pass of the torch.nn.Module
+        :return: cooc matrix from current parameters
         """
-        # covars = self.covar_from_L()
         covars = self._covar_L_tensor @ torch.transpose(self._covar_L_tensor, 1, 2)
         distributions = [torch.distributions.MultivariateNormal(self._means_tensor[i],
                                                                 covars[i]) for i in
@@ -83,14 +84,20 @@ class HmmOptim(torch.nn.Module):
 
     @staticmethod
     def _to_numpy(tens):
-        return tens.cpu().detach().numpy()
+        """
+        Get value of torch tensor as a numpy array
+        :param tens: torch tensor (or parameter)
+        :return: numpy array
+        """
+        return tens.detach().numpy()  # TODO: check if it will be working in all cases
 
     def get_model_params(self):
         """
-        TODO: compute standard transition matrix from self._S_unconstrained
-        :return:
+        Retrieve HMM parameters from torch.nn.Module
+        :return: means, covars, transmat, startprob
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
+
         Ss = torch.exp(self._S_unconstrained)
         S = Ss / Ss.sum()
         startprob = torch.sum(S, dim=1)
