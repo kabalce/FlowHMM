@@ -110,8 +110,8 @@ class HmmOptim(torch.nn.Module):
 
 class DiscreteHMM(hmm.GaussianHMM):
     def __init__(self,
-                 discretization_method: str = 'random', no_nodes: int = 100, l=None, learning_alg='em_dense',
-                 n_components=1, startprob_prior=1.0, transmat_prior=1.0,
+                 discretization_method: str = 'random', no_nodes: int = 100, l=None, learning_alg='cooc',
+                 n_components=1, startprob_prior=1.0, transmat_prior=1.0, optim_params=None, optimizer="SGD",
                  covariance_type='full', min_covar=0.001,  # TODO: implement different covariance types
                  means_prior=0, means_weight=0, covars_prior=0.01, covars_weight=1,
                  algorithm='viterbi', random_state=None, n_iter=10, tol=0.01, verbose=False, params='tmc',  # TODO: default without 's'
@@ -130,26 +130,34 @@ class DiscreteHMM(hmm.GaussianHMM):
         self.discretization_method = discretization_method
         self.no_nodes = no_nodes
         self.nodes = None  # Placeholder
-        self.optimizer = None  # TODO
-        self.model = None
+
         self.learning_alg = learning_alg
+
+        if self.learning_alg in ['cooc']:  # TODO: update in further development
+            self.max_epoch = optim_params.pop('max_epoch', 10000) if optim_params is not None else 10000
+            self.model = None
+            try:
+                self.optimizer = eval(f'torch.optim.{optimizer}')
+            except:
+                _log.warning(f"Optimizer not found: {optimizer}. SGD optimizer will be used instead")
+                self.optimizer = torch.optim.SGD
+            self.optim_params = optim_params if optim_params is not None else dict(lr=0.001)
+
         # TODO: make it optional
         self.l = l
         self.z_, self.u_ = None, None
 
     def _provide_nodes_random(self, X):
         """
-        TODO
-        :param X:
-        :return:
+        Select random observations as nodes for discretization; nodes are saved in attribute nodes
+        :param X: Original, continuous (gaussian) data
         """
         self.nodes = X[np.random.choice(X.shape[0], size=self.no_nodes, replace=False)].transpose()
 
-    def _provide_nodes_latin_q(self, X):  # each point in a row
+    def _provide_nodes_latin_q(self, X):
         """
-        TODO
-        :param X:
-        :return:
+        Provide nodes from CDF on latin qube; nodes are saved in attribute nodes
+        :param X: Original, continuous (gaussian) data
         """
         self.nodes = np.apply_along_axis(
             lambda x: np.quantile(x[:(-self.no_nodes)], x[(-self.no_nodes):]), 0,
@@ -157,28 +165,25 @@ class DiscreteHMM(hmm.GaussianHMM):
 
     def _provide_nodes_latin_u(self, X):  # each point in a row
         """
-        TODO
-        :param X:
-        :return:
+        Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
+        :param X:  Original, continuous (gaussian) data
         """
         self.nodes = (LatinHypercube(self.no_nodes).random(X.shape[1]).transpose() *
                       (X.max(axis=0) - X.min(axis=0))[np.newaxis, :] + X.min(axis=0)[np.newaxis, :]).transpose()
 
     def _provide_nodes_uniform(self, X):
         """
-        TODO
-        :param X:
-        :return:
+        Provide nodes uniformly distributed on cuboid of observations; nodes are saved in attribute nodes
+        :param X: Original, continuous (gaussian) data
         """
         self.nodes = (np.random.uniform(size=self.no_nodes * X.shape[1]).reshape(self.no_nodes, X.shape[1]) *
                       (X.max(axis=0) - X.min(axis=0))[np.newaxis, :] + X.min(axis=0)[np.newaxis, :]).transpose()
 
-    def _provide_nodes(self, X, force):
+    def provide_nodes(self, X, force):
         """
-        TODO
-        :param X:
-        :param force:
-        :return:
+        Provide nodes for discretization according to models discretization method; nodes are saved in attribute nodes
+        :param X: Original, continuous (gaussian) data
+        :param force: If nodes should be updated, when they have been previously specified
         """
         if not force and (self.nodes is not None):
             if self.verbose:
@@ -195,21 +200,21 @@ class DiscreteHMM(hmm.GaussianHMM):
 
     def _discretize(self, X, force):
         """
-        TODO
-        :param X:
-        :param force:
-        :return:
+        Provide nodes for discretization and represent continuous data as cluster indexes
+        :param X: Original, continuous (gaussian) data
+        :param force: Should nodes be updated, if they are already provided.
+        :return: Discretized data (index of cluster)
         """
-        self._provide_nodes(X, force)
+        self.provide_nodes(X, force)
         return np.argmin(np.square(X[:, :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1), axis=1).reshape(-1)
 
     def _needs_init(self, code, name, torch_check=False):
         """
-        TODO
-        :param code:
-        :param name:
-        :param torch_check:
-        :return:
+        Decide wether the attribute needs to be initialized (based on model setup)
+        :param code: short code possibly included in init params
+        :param name: name of sttributed to initialize
+        :param torch_check: is the check provided for torch initial values (True) or HMM initial values (False)
+        :return: boolean, should attribute be initialized
         """
         if torch_check:
             result = True if code in self.init_params else False
@@ -230,9 +235,9 @@ class DiscreteHMM(hmm.GaussianHMM):
     @staticmethod
     def compute_stationary(matrix):  # TODO: or maybe it should be a separate function -- think of it
         """
-        TODO
-        :param matrix:
-        :return:
+        Compute stationary distiobution of a stochastic matrix
+        :param matrix: stochastic matrix
+        :return: vector stationary distribution
         """
         vals, vecs = np.linalg.eig(matrix.T)
         vec1 = vecs[:, np.isclose(vals, 1)].reshape(-1)
@@ -241,10 +246,9 @@ class DiscreteHMM(hmm.GaussianHMM):
 
     def _init(self, X, lengths=None):
         """
-        TODO
-        :param X:
-        :param lengths:
-        :return:
+        Initialize model parameters and prepare data before training
+        :param X: Original, continuous (gaussian) data
+        :param lengths: Lengths of individual sequences in X
         """
         super()._init(X)  # init k-means with a batch of data (of some maximum size)?
 
@@ -279,10 +283,10 @@ class DiscreteHMM(hmm.GaussianHMM):
 
     def _cooccurence(self, Xd, lengths=None):
         """
-        TODO
-        :param Xd:
-        :param lengths:
-        :return:
+        Process discrete data sequences into co-occurrence matrix
+        :param Xd: Disretized data (represented as cluster indexes)
+        :param lengths: Lengths of individual sequences in X
+        :return: co-occurrence matrix
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 88 - skąd taki dzielnik??
         cooc_matrix = np.zeros(shape=(Xd.max() + 1, Xd.max() + 1))
@@ -295,38 +299,36 @@ class DiscreteHMM(hmm.GaussianHMM):
         cooc_matrix /= cooc_matrix.sum()
         return cooc_matrix
 
-    def _fit_cooc(self, X, Xc, lengths=None):
+    def _fit_cooc(self, Xd, Xc, lengths=None):
         """
-        TODO
-        :param X:
-        :param lengths:
-        :return:
+        Run co-occurrence-based learning (using torch.nn.Modul)
+        :param Xd: Disretized data (represented as cluster indexes)
+        :param Xc: Original, continuous (gaussian) data
+        :param lengths: Lengths of individual sequences in X
         """
         # TODO: iterate
         # TODO: loguj do convergence monitora raz na jakiś czas
-        max_epoch = 10000  # TODO: parametrize
-        cooc_matrix = torch.tensor(self._cooccurence(X, lengths))
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9, maximize=False)
-        for i in range(max_epoch):
+          # TODO: parametrize
+        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengths))
+        optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+        for i in range(self.max_epoch):
             optimizer.zero_grad()
             torch.nn.KLDivLoss(reduction='sum')(self.model(self.nodes), cooc_matrix).backward()
             optimizer.step()
-            if i % 100 == 0:  # TODO: select properly
+            if i % 1000 == 0:  # TODO: select properly
                 self.means_, self.covars_, self.transmat_, self.startprob_ = self.model.get_model_params()
                 score = self.score(Xc, lengths)
-                print(score)  # TODO: if verbose...
                 self.monitor_.report(score)
                 if self.monitor_.converged:
                     break
-        return self
 
 
     def fit(self, X, lengths=None, update_nodes=False):
         """
-        TODO
-        :param X:
-        :param lengths:
-        :param update_nodes:
+        Train the model tih the proper method
+        :param X: Original, continuous (gaussian) data
+        :param lengths: Lengths of individual sequences in X
+        :param update_nodes: Should the nodes be re-initialized, if they are already provided.
         :return:
         """
         self._init(X,  lengths)
@@ -343,10 +345,10 @@ class DiscreteHMM(hmm.GaussianHMM):
 
 if __name__ == "__main__":
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
-    myHMM = DiscreteHMM('random', 10, n_components=3,  learning_alg='cooc')
-    myHMM2 = DiscreteHMM('uniform', 10, n_components=3,  learning_alg='cooc')
-    myHMM3 = DiscreteHMM('latin_cube_u', 10, n_components=3,  learning_alg='cooc')
-    myHMM4 = DiscreteHMM('latin_cube_q', 10, n_components=3,  learning_alg='cooc')
+    myHMM = DiscreteHMM('random', 10, n_components=3,  learning_alg='cooc', verbose=True)
+    myHMM2 = DiscreteHMM('uniform', 10, n_components=3,  learning_alg='cooc', verbose=True)
+    myHMM3 = DiscreteHMM('latin_cube_u', 10, n_components=3,  learning_alg='cooc', verbose=True)
+    myHMM4 = DiscreteHMM('latin_cube_q', 10, n_components=3,  learning_alg='cooc', verbose=True)
     obs, hid = hmm.sample(100)
     myHMM.fit(obs)
     myHMM2.fit(obs)
