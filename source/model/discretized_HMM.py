@@ -12,6 +12,9 @@ import torch
 
 # hints for implementation: TYPOWANIE!
 
+# TODO: recheck cavariance learning in HmmOptim!
+# TODO: recheck Latin cube
+
 
 # Future features:
 # try reading data out of file when using quasi random nodes
