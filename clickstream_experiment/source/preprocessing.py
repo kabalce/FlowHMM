@@ -86,11 +86,9 @@ def prepare_file_for_w2v(click_stream, w2v_min_len):
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
         "w",
     ) as f:
-        for s in tqdm(
-            click_stream.item_sequences(min_len=w2v_min_len),
-            desc="Writing file for w2v",
-        ):
-            f.write((" ".join([str(w) for w in s]) + "\n").encode("utf-8"))
+        [f.write((" ".join([str(w) for w in s]) + "\n").encode("utf-8")) for s in click_stream.item_sequences(min_len=w2v_min_len)]
+
+
 
 
 def train_w2v(w2v_dim, w2v_epochs, w2v_min_len):
@@ -114,7 +112,7 @@ if __name__ == "__main__":
     w2v_dim, w2v_epochs, hmm_nodes, w2v_min_len = parse_args()
 
     cs = load_raw_clickstream()
-    analyze_clickstream(cs)
+    # analyze_clickstream(cs)
     prepare_file_for_w2v(cs, w2v_min_len)
 
     del cs
