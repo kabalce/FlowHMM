@@ -28,7 +28,7 @@ LEARNING_ALGORITHMS = ["em", "em_dense", "cooc"]
 class HmmOptim(torch.nn.Module):
     def __init__(
         self,
-        n_components:  int,
+        n_components: int,
         n_dim: int,
         means_: Optional[npt.NDArray] = None,
         covars_: Optional[npt.NDArray] = None,
@@ -103,7 +103,9 @@ class HmmOptim(torch.nn.Module):
         Calculate the forward pass of the torch.nn.Module
         :return: cooc matrix from current parameters
         """
-        covars = torch.triu(self._covar_L_tensor) @ torch.transpose(torch.triu(self._covar_L_tensor), 1, 2)
+        covars = torch.triu(self._covar_L_tensor) @ torch.transpose(
+            torch.triu(self._covar_L_tensor), 1, 2
+        )
         distributions = [
             torch.distributions.MultivariateNormal(self._means_tensor[i], covars[i])
             for i in range(self.n_components)
@@ -112,7 +114,9 @@ class HmmOptim(torch.nn.Module):
         B = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    dist.log_prob(torch.Tensor(nodes.T)).reshape(1, -1)  # TODO: zwykłe prob (bez loga)
+                    dist.log_prob(torch.Tensor(nodes.T)).reshape(
+                        1, -1
+                    )  # TODO: zwykłe prob (bez loga)
                     for dist in distributions
                 ],
                 dim=0,
@@ -166,7 +170,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         startprob_prior: float = 1.0,
         transmat_prior: float = 1.0,
         optim_params: Optional[str] = None,
-        optimizer:  str = "SGD",
+        optimizer: str = "SGD",
         covariance_type: str = "full",
         min_covar: float = 0.001,  # TODO: implement different covariance types
         means_prior: float = 0,
@@ -176,7 +180,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         algorithm: str = "viterbi",
         random_state: int = None,
         n_iter: int = 10,
-        tol: float = 0.01, 
+        tol: float = 0.01,
         verbose: bool = False,
         params: str = "tmc",  # TODO: default without 's'
         init_params: str = "tmc",
@@ -300,7 +304,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         else:
             self._provide_nodes_uniform(X)
 
-    def _discretize(self, X: npt.NDArray, force: bool):
+    def discretize(self, X: npt.NDArray, force: bool):
         """
         Provide nodes for discretization and represent continuous data as cluster indexes
         :param X: Original, continuous (gaussian) data
@@ -391,7 +395,9 @@ class DiscreteHMM(hmm.GaussianHMM):
         if self.learning_alg == "cooc":
             self.model = HmmOptim(**torch_inits)
 
-    def _fit_em_dense(self, X: npt.NDArray, lengths: Optional[npt.NDArray[int]] = None):  # TODO: add for Gaussian Dense HMMs
+    def _fit_em_dense(
+        self, X: npt.NDArray, lengths: Optional[npt.NDArray[int]] = None
+    ):  # TODO: add for Gaussian Dense HMMs
         """
         TODO
         :param X:
@@ -400,7 +406,9 @@ class DiscreteHMM(hmm.GaussianHMM):
         """
         pass
 
-    def _cooccurence(self, Xd: npt.NDArray[int], lengths: Optional[npt.NDArray[int]] = None):
+    def _cooccurence(
+        self, Xd: npt.NDArray[int], lengths: Optional[npt.NDArray[int]] = None
+    ):
         """
         Process discrete data sequences into co-occurrence matrix
         :param Xd: Disretized data (represented as cluster indexes)
@@ -418,7 +426,12 @@ class DiscreteHMM(hmm.GaussianHMM):
         cooc_matrix /= cooc_matrix.sum()
         return cooc_matrix
 
-    def _fit_cooc(self, Xd: npt.NDArray, Xc: npt.NDArray, lengths: Optional[npt.NDArray[int]] = None):
+    def _fit_cooc(
+        self,
+        Xd: npt.NDArray,
+        Xc: Optional[npt.NDArray],
+        lengths: Optional[npt.NDArray[int]] = None,
+    ):
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
         :param Xd: Disretized data (represented as cluster indexes)
@@ -443,27 +456,48 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
-                score = self.score(Xc, lengths)
-                self.monitor_.report(score)
-                if self.monitor_.converged:
-                    break
+                if Xc is not None:
+                    score = self.score(Xc, lengths)
+                    self.monitor_.report(score)
+                    if (
+                        self.monitor_.converged
+                    ):  # TODO: monitor convergence from torch training
+                        break
+        (
+            self.means_,
+            self.covars_,
+            self.transmat_,
+            self.startprob_,
+        ) = self.model.get_model_params()
 
-    def fit(self, X: npt.NDArray, lengths: Optional[npt.NDArray[int]] = None, update_nodes: bool = False):
+    def fit(
+        self,
+        X: npt.NDArray,
+        lengths: Optional[
+            npt.NDArray[int]
+        ] = None,  # we can possible specify other data for training and validation
+        Xd: Optional[npt.NDArray] = None,
+        lengths_d: Optional[npt.NDArray[int]] = None,
+        update_nodes: bool = False,
+    ):
+        # TODO: fix docstrings
         """
         Train the model tih the proper method
         :param X: Original, continuous (gaussian) data
-        :param lengths: Lengths of individual sequences in X
+        :param lengths_d: Lengths of individual sequences in X
         :param update_nodes: Should the nodes be re-initialized, if they are already provided.
         :return:
         """
-        self._init(X, lengths)
-        Xd = self._discretize(X, update_nodes)
+        if Xd is None:
+            self._init(X, lengths)
+            Xd = self.discretize(X, update_nodes)
+            lengths_d = lengths
         if self.learning_alg == "em":
-            super().fit(self.nodes.T[Xd], lengths)
+            super().fit(self.nodes.T[Xd], lengths_d)
         elif self.learning_alg == "em_dense":
-            self._fit_em_dense(X, lengths)
+            self._fit_em_dense(X, lengths_d)
         elif self.learning_alg == "cooc":
-            self._fit_cooc(Xd, X, lengths)
+            self._fit_cooc(Xd, X, lengths_d)
         else:
             _log.error(
                 f"Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}"
@@ -471,8 +505,6 @@ class DiscreteHMM(hmm.GaussianHMM):
 
 
 if __name__ == "__main__":
-
-
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
     obs, hid = hmm.sample(100)
 

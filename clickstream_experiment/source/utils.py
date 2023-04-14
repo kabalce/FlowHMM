@@ -8,11 +8,11 @@ def read_jsonl(f):
 
 
 def encode_event_type(string):
-    if string == 'carts':
+    if string == "carts":
         return 0
-    elif string == 'clicks':
+    elif string == "clicks":
         return 1
-    elif string == 'orders':
+    elif string == "orders":
         return 2
     else:
         return None
