@@ -3,12 +3,12 @@ import numpy as np
 from pathlib import Path
 from gensim.models import KeyedVectors
 from hmmlearn import hmm
-from FlowHMM.model.discretized_HMM import DiscreteHMM
-
+from torchHMM.model.discretized_HMM import DiscreteHMM
+import logging
 
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
-
+logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log", encoding='utf-8', level=logging.DEBUG)
 
 # TODO: save all prints also as information in files
 
@@ -162,6 +162,12 @@ if __name__ == "__main__":
     print(
         f"Loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test)}"
     )
+    logging.debug(
+        f"Loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test)}"
+    )
     print(
+        f"Loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test)}"
+    )
+    logging.debug(
         f"Loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test)}"
     )

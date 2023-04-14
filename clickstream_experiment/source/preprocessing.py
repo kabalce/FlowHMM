@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 from clickstream_experiment.source.clickstream import ClickStream
 from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
+import logging
+
 
 
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
-
+logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/preprocessing.log", encoding='utf-8', level=logging.DEBUG)
 
 # TODO: save all prints also as information in files
 
@@ -63,8 +65,11 @@ def analyze_clickstream(click_stream):
     item_ids = pd.Series(click_stream.item_ids)
 
     print(f"Number of sessions in {DATA_SET} set: {len(click_stream.sessions)}")
+    logging.debug(f"Number of sessions in {DATA_SET} set: {len(click_stream.sessions)}")
     print(f"Number of products in {DATA_SET} set: {item_ids.shape[0]}")
+    logging.debug(f"Number of products in {DATA_SET} set: {item_ids.shape[0]}")
     print(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
+    logging.debug(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
 
     session_lens.plot(kind="bar")
     plt.savefig(f"{PROJECT_PATH}/analysis/sesstion_lens_{DATA_SET}.png")
