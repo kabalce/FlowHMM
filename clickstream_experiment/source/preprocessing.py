@@ -86,7 +86,7 @@ def prepare_file_for_w2v(click_stream, w2v_min_len):
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
         "w",
     ) as f:
-        [f.write((" ".join([str(w) for w in s]) + "\n").encode("utf-8")) for s in click_stream.item_sequences(min_len=w2v_min_len)]
+        [f.write((" ".join([str(w) for w in s]) + "\n").encode("utf-8")) for s in click_stream.sessions if len(s.event_list) >= w2v_min_len]
 
 
 
