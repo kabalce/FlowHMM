@@ -4,16 +4,20 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from clickstream_experiment.source.clickstream import ClickStream
 from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
 import logging
-
+import os
+PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
+os.chdir(PROJECT_PATH)
+from clickstream_experiment.source.clickstream import ClickStream
 
 
 DATA_SET = "train"
-PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/preprocessing.log", encoding='utf-8', level=logging.DEBUG)
+
+
+
 
 # TODO: save all prints also as information in files
 
