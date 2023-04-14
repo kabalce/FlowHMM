@@ -2,7 +2,7 @@ import argparse
 import pickle as pkl
 import pandas as pd
 from pathlib import Path
-from tqdm import tqdm
+import os
 import matplotlib.pyplot as plt
 from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
@@ -111,8 +111,17 @@ if __name__ == "__main__":
     # logging.debug('Start preprocessing.')
     w2v_dim, w2v_epochs, hmm_nodes, w2v_min_len = parse_args()
 
-    cs = load_raw_clickstream()
-    # analyze_clickstream(cs)
+    cs_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/ClickStream_{DATA_SET}.pkl"
+    if os.path.exists(cs_path):
+        with open(
+            cs_path,
+            "rb",
+        ) as f:
+            cs = pkl.load(f)
+    else:
+        cs = load_raw_clickstream()
+        analyze_clickstream(cs)
+
     prepare_file_for_w2v(cs, w2v_min_len)
 
     del cs
