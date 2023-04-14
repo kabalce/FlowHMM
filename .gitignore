@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 clickstream_experiment/.idea
+clickstream_experiment/logs/*
 
 # C extensions
 *.so
