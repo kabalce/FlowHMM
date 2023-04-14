@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
 import logging
-import os
+import sys
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
-os.chdir(PROJECT_PATH)
+sys.path.insert(1, PROJECT_PATH)
 from clickstream_experiment.source.clickstream import ClickStream
 
 
