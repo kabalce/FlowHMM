@@ -1,4 +1,4 @@
-from clickstream_experiment.source.utils import encode_event_type
+from utils import encode_event_type
 from abc import ABC
 import json
 from collections import defaultdict as dd
