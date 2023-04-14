@@ -16,10 +16,7 @@ from clickstream_experiment.source.clickstream import ClickStream
 DATA_SET = "train"
 logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/preprocessing.log", encoding='utf-8', level=logging.DEBUG)
 
-
-
-
-# TODO: save all prints also as information in files
+# TODO: add progress logging
 
 
 def parse_args():

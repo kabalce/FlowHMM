@@ -10,7 +10,7 @@ DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log", encoding='utf-8', level=logging.DEBUG)
 
-# TODO: save all prints also as information in files
+# TODO: add progress logging
 
 
 def parse_args():

@@ -4,6 +4,10 @@ import json
 from collections import defaultdict as dd
 
 
+def zero_init():
+    return 0
+
+
 class ClickStreamEvent(ABC):
     def __init__(self, event, clickstream):
         self.item_id = event["aid"]
@@ -28,8 +32,8 @@ class ClickStreamSession(ABC):
 
 class ClickStream(ABC):
     def __init__(self, data):
-        self.item_ids = dd(lambda: 0)
-        self.session_lengths = dd(lambda: 0)
+        self.item_ids = dd(zero_init)
+        self.session_lengths = dd(zero_init)
         self.sessions = [
             ClickStreamSession(json.loads(session), self)
             for _, session in enumerate(data)
