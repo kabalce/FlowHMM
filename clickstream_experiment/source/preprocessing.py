@@ -73,12 +73,12 @@ def analyze_clickstream(click_stream):
     logging.debug(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
 
     session_lens.plot(kind="bar")
-    plt.savefig(f"{PROJECT_PATH}/analysis/sesstion_lens_{DATA_SET}.png")
+    plt.savefig(f"{PROJECT_PATH}/clickstream_experiment/analysis/sesstion_lens_{DATA_SET}.png")
 
     item_ids.value_counts().plot(kind="hist")
     plt.xlabel("Number of occurrences")
     plt.ylabel("Number of products")
-    plt.savefig(f"{PROJECT_PATH}/analysis/item_freqs_{DATA_SET}.png")
+    plt.savefig(f"{PROJECT_PATH}/clickstream_experiment/analysis/item_freqs_{DATA_SET}.png")
 
 
 def prepare_file_for_w2v(click_stream, w2v_min_len):
@@ -103,7 +103,7 @@ def train_w2v(w2v_dim, w2v_epochs, w2v_min_len):
         epochs=w2v_epochs,
     )
     w2v_model.wv.save(
-        f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/vectors_train_{w2v_dim}_{w2v_epochs}.kv"
+        f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/vectors_train_{w2v_dim}_{w2v_min_len}_{w2v_epochs}.kv"
     )
 
 
@@ -112,20 +112,21 @@ if __name__ == "__main__":
     w2v_dim, w2v_epochs, hmm_nodes, w2v_min_len = parse_args()
 
     cs_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/ClickStream_{DATA_SET}.pkl"
-    if os.path.exists(cs_path):
-        with open(
-            cs_path,
-            "rb",
-        ) as f:
-            cs = pkl.load(f)
-    else:
-        cs = load_raw_clickstream()
-        analyze_clickstream(cs)
+    w2v_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt"
+    if not os.path.exists(w2v_path):
+        if os.path.exists(cs_path):
+            with open(
+                cs_path,
+                "rb",
+            ) as f:
+                cs = pkl.load(f)
+        else:
+            cs = load_raw_clickstream()
+            analyze_clickstream(cs)
 
-    logging.info("ClickStream loaded.")
+        logging.info("ClickStream loaded.")
+        prepare_file_for_w2v(cs, w2v_min_len)
+        logging.info('Data for word2vec written to file.')
+        del cs
 
-    prepare_file_for_w2v(cs, w2v_min_len)
-
-    del cs
-
-    train_w2v(w2v_dim, w2v_epochs, w2v_min_len)
+    # train_w2v(w2v_dim, w2v_epochs, w2v_min_len)
