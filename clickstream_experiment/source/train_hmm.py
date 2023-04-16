@@ -77,9 +77,9 @@ def parse_args():
     )
 
 
-def discretize_data(myHMM, w2v_dim, w2v_epochs):
+def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     vectors = KeyedVectors.load(
-        f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/vectors_train_{w2v_dim}_{w2v_epochs}.kv"
+        f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/vectors_train_{w2v_dim}_{w2v_min_len}_{w2v_epochs}.kv"
     )
     vecs = np.concatenate(
         [
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         lengths_train,
         lengths_sub_train,
         lengths_test,
-    ) = discretize_data(myHMM, w2v_dim, w2v_epochs)
+    ) = discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len)
 
     standardHMM.fit(Xc_train, lengths_sub_train)
     DiscreteHMM.fit(Xc_test, lengths_test, Xd_train, lengths_train)
