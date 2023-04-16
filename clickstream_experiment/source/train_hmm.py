@@ -87,7 +87,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             for k in list(vectors.key_to_index.keys())
         ]
     )
-    discrete_index = myHMM.discretize(vecs)
+    discrete_index = myHMM.discretize(vecs, force=False)
 
     with open(
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
