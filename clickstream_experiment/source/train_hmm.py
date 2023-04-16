@@ -3,12 +3,15 @@ import numpy as np
 from pathlib import Path
 from gensim.models import KeyedVectors
 from hmmlearn import hmm
-from torchHMM.model.discretized_HMM import DiscreteHMM
 import logging
+import sys
 
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
+sys.path.insert(1, PROJECT_PATH)
 logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log", encoding='utf-8', level=logging.DEBUG)
+
+from torchHMM.model.discretized_HMM import DiscreteHMM
 
 np.random.seed(2023)
 # TODO: add progress logging
