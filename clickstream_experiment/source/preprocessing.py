@@ -69,7 +69,7 @@ def analyze_clickstream(click_stream):
     logging.debug(f"Number of sessions in {DATA_SET} set: {len(click_stream.sessions)}")
     print(f"Number of products in {DATA_SET} set: {item_ids.shape[0]}")
     logging.debug(f"Number of products in {DATA_SET} set: {item_ids.shape[0]}")
-    print(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
+    print(f"Average session length in {DATA_SET} set: {(session_lens.index * session_lens).sum() / session_lens.sum()}")  # TODO: fix the statistics
     logging.debug(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
 
     session_lens.plot(kind="bar")

@@ -106,7 +106,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         Xc = [
             np.concatenate([vectors[word].reshape(1, -1) for word in line.split(" ")])
             for i, line in zip(range(len(Xd)), f.readlines())
-            if i in indexes
+            if i in indexes.tolist()
         ]
 
     Xd_train = [Xd[i] for i in indexes[200000:]]
