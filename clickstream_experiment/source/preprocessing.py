@@ -122,7 +122,8 @@ if __name__ == "__main__":
                 cs = pkl.load(f)
         else:
             cs = load_raw_clickstream()
-            analyze_clickstream(cs)
+
+        analyze_clickstream(cs)
 
         logging.info("ClickStream loaded.")
         prepare_file_for_w2v(cs, w2v_min_len)
