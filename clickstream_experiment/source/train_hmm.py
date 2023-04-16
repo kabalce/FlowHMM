@@ -61,7 +61,7 @@ def parse_args():
     parser.add_argument(
         "--number-of-nodes",
         type=int,
-        default=100,
+        default=1000,
         help="discretization technique for hmm training",
     )
     args = parser.parse_args()
@@ -87,7 +87,9 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             for k in list(vectors.key_to_index.keys())
         ]
     )
-    discrete_index = myHMM.discretize(vecs, force=False)
+
+    myHMM.provide_nodes(vecs, force=False)
+    discrete_index = np.concatenate([myHMM.discretize(vecs[(100000 * i):(100000 * (i + 1))], force=False) for i in range(vecs.shape[0] // 100000 + 1)])
 
     with open(
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
