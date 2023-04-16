@@ -130,4 +130,4 @@ if __name__ == "__main__":
         logging.info('Data for word2vec written to file.')
         del cs
 
-    # train_w2v(w2v_dim, w2v_epochs, w2v_min_len)
+    train_w2v(w2v_dim, w2v_epochs, w2v_min_len)
