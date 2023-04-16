@@ -10,6 +10,7 @@ DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log", encoding='utf-8', level=logging.DEBUG)
 
+np.random.seed(2023)
 # TODO: add progress logging
 
 
