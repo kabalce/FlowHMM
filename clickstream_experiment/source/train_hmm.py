@@ -101,7 +101,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     ) as f:
         Xd = [
             np.array(
-                [discrete_index[vectors.key_to_index[word]] for word in line.split(" ")]
+                [discrete_index[vectors.key_to_index[word]] for word in line.replace("\n", "").split(" ")]
             ).reshape(-1, 1)
             for line in f.readlines()
         ]
