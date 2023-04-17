@@ -104,7 +104,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             for line in f.readlines()
         ]
         ic(len(Xd))
-        indexes = np.random.randint(len(Xd), size=220000)
+        indexes = np.random.randint(len(Xd), size=22000)
         ic(indexes.shape)
         Xc = [
             np.concatenate([vectors[word].reshape(1, -1) for word in line.split(" ")])
@@ -113,11 +113,11 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         ]
         ic(len(Xc))
 
-    Xd_train = Xd[200000:]
-    Xd_test = Xd[:200000]
+    Xd_train = Xd[20000:]
+    Xd_test = Xd[:20000]
 
-    Xc_train = Xc[:200000]
-    Xc_test = Xc[200000:]
+    Xc_train = Xc[:20000]
+    Xc_test = Xc[20000:]
 
     lengths_train = np.array([x.shape[0] for x in Xd_train])
     lengths_sub_train = np.array([x.shape[0] for x in Xc_train])
