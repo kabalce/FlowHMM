@@ -5,6 +5,7 @@ from gensim.models import KeyedVectors
 from hmmlearn import hmm
 import logging
 import sys
+from icecream import ic
 
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
@@ -89,7 +90,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     )
 
     myHMM.provide_nodes(vecs, force=False)
-    batch_size = 10000
+    batch_size = 50000
     discrete_index = np.concatenate([myHMM.discretize(vecs[(batch_size * i):(batch_size * (i + 1))], force=False) for i in range(vecs.shape[0] // batch_size + 1)])
 
     with open(
@@ -102,17 +103,18 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             ).reshape(-1, 1)
             for line in f.readlines()
         ]
+        ic(len(Xd))
         indexes = np.random.randint(len(Xd), size=220000)
-        print(indexes.shape)
+        ic(indexes.shape)
         Xc = [
             np.concatenate([vectors[word].reshape(1, -1) for word in line.split(" ")])
             for i, line in zip(range(len(Xd)), f.readlines())
             if i in indexes.tolist()
         ]
-        print(len(Xc))
+        ic(len(Xc))
 
-    Xd_train = [Xd[i] for i in indexes[200000:]]
-    Xd_test = [Xd[i] for i in indexes[:200000]]
+    Xd_train = Xd[200000:]
+    Xd_test = Xd[:200000]
 
     Xc_train = Xc[:200000]
     Xc_test = Xc[200000:]
