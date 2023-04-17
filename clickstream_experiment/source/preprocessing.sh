@@ -6,7 +6,7 @@ do
   do
     for l in 5 10 15 20
     do
-      python3 preprocessing.py --w2v-dim d --w2v-epochs e --hmm-nodes n --w2v-min-len l
+      python3 preprocessing.py --w2v-dim $d --w2v-epochs $e --w2v-min-len $l
     done
   done
 done
