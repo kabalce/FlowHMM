@@ -90,11 +90,11 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     )
 
     myHMM.provide_nodes(vecs, force=False)
-    batch_size = 50000
+    batch_size = 20000
     discrete_index = np.concatenate([myHMM.discretize(vecs[(batch_size * i):(batch_size * (i + 1))], force=False) for i in range(vecs.shape[0] // batch_size + 1)])
 
     print("discretized.")
-    
+
     with open(
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
         "r",
