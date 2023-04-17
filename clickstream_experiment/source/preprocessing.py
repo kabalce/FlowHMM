@@ -72,10 +72,10 @@ def analyze_clickstream(click_stream):
     print(f"Average session length in {DATA_SET} set: {(session_lens.index * session_lens).sum() / session_lens.sum()}")  # TODO: fix the statistics
     logging.debug(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
 
-    session_lens.plot(kind="bar")
+    session_lens.sort_index().plot(kind="bar")
     plt.savefig(f"{PROJECT_PATH}/clickstream_experiment/analysis/sesstion_lens_{DATA_SET}.png")
 
-    item_ids.value_counts().plot(kind="hist")
+    item_ids.value_counts().sort_index().plot(kind="hist")
     plt.xlabel("Number of occurrences")
     plt.ylabel("Number of products")
     plt.savefig(f"{PROJECT_PATH}/clickstream_experiment/analysis/item_freqs_{DATA_SET}.png")
@@ -86,7 +86,7 @@ def prepare_file_for_w2v(click_stream, w2v_min_len):
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
         "w",
     ) as f:
-        [f.write(" ".join([str(w) for w in s.list_items()])) for s in click_stream.sessions if len(s.event_list) >= w2v_min_len]
+        [f.write(" ".join([str(w) for w in s.list_items()]) + "\n") for s in click_stream.sessions if len(s.event_list) >= w2v_min_len]
 
 
 
@@ -123,7 +123,13 @@ if __name__ == "__main__":
         else:
             cs = load_raw_clickstream()
 
-        analyze_clickstream(cs)
+        # analyze_clickstream(cs)
+
+        """
+        Number of sessions in train set: 12899779
+        Number of products in train set: 1855603
+        Average session length in train set: 16.799985178040647
+        """
 
         logging.info("ClickStream loaded.")
         prepare_file_for_w2v(cs, w2v_min_len)
