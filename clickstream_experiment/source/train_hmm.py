@@ -119,8 +119,8 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     Xd_train = [Xd[i] for i in range(len(Xd)) if i not in indexes[200000:]]
     Xd_test = [Xd[i] for i in indexes[200000:]]
 
-    Xc_train = [Xc[i] for i in indexes[:200000]]
-    Xc_test = [Xc[i] for i in indexes[200000:]]
+    Xc_train = [Xc[i] for i in indexes.argsort()[:200000]]
+    Xc_test = [Xc[i] for i in indexes.argsort()[200000:]]
 
     lengths_train = np.array([x.shape[0] for x in Xd_train])
     lengths_sub_train = np.array([x.shape[0] for x in Xc_train])
