@@ -31,19 +31,13 @@ def parse_args():
         help="number of epochs for word2vec training",
     )
     parser.add_argument(
-        "--hmm-nodes",
-        type=int,
-        default=500,
-        help="number of epochs for word2vec training",
-    )
-    parser.add_argument(
         "--w2v-min-len",
         type=int,
         default=10,
         help="minimal sequence length for word3vec training",
     )
     args = parser.parse_args()
-    return args.w2v_dim, args.w2v_epochs, args.hmm_nodes, args.w2v_min_len
+    return args.w2v_dim, args.w2v_epochs, args.w2v_min_len
 
 
 def load_raw_clickstream():
@@ -109,7 +103,7 @@ def train_w2v(w2v_dim, w2v_epochs, w2v_min_len):
 
 if __name__ == "__main__":
     # logging.debug('Start preprocessing.')
-    w2v_dim, w2v_epochs, hmm_nodes, w2v_min_len = parse_args()
+    w2v_dim, w2v_epochs, w2v_min_len = parse_args()
 
     cs_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/ClickStream_{DATA_SET}.pkl"
     w2v_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt"
