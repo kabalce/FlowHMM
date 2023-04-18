@@ -106,7 +106,8 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             for line in f.readlines()
         ]
         ic(len(Xd))
-        indexes = np.random.randint(len(Xd), size=220000)
+        subsample_size = 20000
+        indexes = np.random.choice(len(Xd), size=int(subsample_size * 1.1), replace=False)
         ic(indexes.shape)
         f.seek(0)
         Xc = [
@@ -116,11 +117,11 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         ]
         ic(len(Xc))
 
-    Xd_train = [Xd[i] for i in range(len(Xd)) if i not in indexes[200000:]]
-    Xd_test = [Xd[i] for i in indexes[200000:]]
+    Xd_train = [Xd[i] for i in range(len(Xd)) if i not in indexes[subsample_size:]]
+    Xd_test = [Xd[i] for i in indexes[subsample_size:]]
 
-    Xc_train = [Xc[i] for i in indexes.argsort()[:200000]]
-    Xc_test = [Xc[i] for i in indexes.argsort()[200000:]]
+    Xc_train = [Xc[i] for i in indexes.argsort()[:subsample_size]]
+    Xc_test = [Xc[i] for i in indexes.argsort()[subsample_size:]]
 
     lengths_train = np.array([x.shape[0] for x in Xd_train])
     lengths_sub_train = np.array([x.shape[0] for x in Xc_train])
