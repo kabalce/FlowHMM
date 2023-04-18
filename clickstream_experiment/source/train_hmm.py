@@ -103,7 +103,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             np.array(
                 [discrete_index[vectors.key_to_index[word]] for word in line.replace("\n", "").split(" ")]
             ).reshape(-1, 1)
-            for line in f.readlines()
+            for line in f.readlines()[:100000]  # TODO
         ]
         ic(len(Xd))
         subsample_size = 20000
@@ -112,7 +112,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         f.seek(0)
         Xc = [
             np.concatenate([vectors[word].reshape(1, -1) for word in line.replace("\n", "").split(" ")])
-            for i, line in enumerate(f)
+            for i, line in enumerate(f)[:100000]  # TODO
             if i in indexes.tolist()
         ]
         ic(len(Xc))
@@ -172,7 +172,6 @@ if __name__ == "__main__":
     ) = discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len)
 
     standardHMM.fit(Xc_train, lengths_sub_train)
-    DiscreteHMM.fit(Xc_test, lengths_test, Xd_train, lengths_train)
 
     print(
         f"Loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test)}"
@@ -180,6 +179,9 @@ if __name__ == "__main__":
     logging.debug(
         f"Loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test)}"
     )
+
+    DiscreteHMM.fit(X=Xc_test, lengths=lengths_test, Xd=Xd_train, lengths_d=lengths_train)
+
     print(
         f"Loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test)}"
     )
