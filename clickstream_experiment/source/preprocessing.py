@@ -8,13 +8,18 @@ from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
 import logging
 import sys
+
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 sys.path.insert(1, PROJECT_PATH)
 from clickstream_experiment.source.clickstream import ClickStream
 
 
 DATA_SET = "train"
-logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/preprocessing.log", encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(
+    filename=f"{PROJECT_PATH}/clickstream_experiment/logs/preprocessing.log",
+    encoding="utf-8",
+    level=logging.DEBUG,
+)
 
 # TODO: add progress logging
 
@@ -63,16 +68,22 @@ def analyze_clickstream(click_stream):
     logging.debug(f"Number of sessions in {DATA_SET} set: {len(click_stream.sessions)}")
     print(f"Number of products in {DATA_SET} set: {item_ids.shape[0]}")
     logging.debug(f"Number of products in {DATA_SET} set: {item_ids.shape[0]}")
-    print(f"Average session length in {DATA_SET} set: {(session_lens.index * session_lens).sum() / session_lens.sum()}")  # TODO: fix the statistics
+    print(
+        f"Average session length in {DATA_SET} set: {(session_lens.index * session_lens).sum() / session_lens.sum()}"
+    )  # TODO: fix the statistics
     logging.debug(f"Average session length in {DATA_SET} set: {session_lens.mean()}")
 
     session_lens.sort_index().plot(kind="bar")
-    plt.savefig(f"{PROJECT_PATH}/clickstream_experiment/analysis/sesstion_lens_{DATA_SET}.png")
+    plt.savefig(
+        f"{PROJECT_PATH}/clickstream_experiment/analysis/sesstion_lens_{DATA_SET}.png"
+    )
 
     item_ids.value_counts().sort_index().plot(kind="hist")
     plt.xlabel("Number of occurrences")
     plt.ylabel("Number of products")
-    plt.savefig(f"{PROJECT_PATH}/clickstream_experiment/analysis/item_freqs_{DATA_SET}.png")
+    plt.savefig(
+        f"{PROJECT_PATH}/clickstream_experiment/analysis/item_freqs_{DATA_SET}.png"
+    )
 
 
 def prepare_file_for_w2v(click_stream, w2v_min_len):
@@ -80,9 +91,11 @@ def prepare_file_for_w2v(click_stream, w2v_min_len):
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt",
         "w",
     ) as f:
-        [f.write(" ".join([str(w) for w in s.list_items()]) + "\n") for s in click_stream.sessions if len(s.event_list) >= w2v_min_len]
-
-
+        [
+            f.write(" ".join([str(w) for w in s.list_items()]) + "\n")
+            for s in click_stream.sessions
+            if len(s.event_list) >= w2v_min_len
+        ]
 
 
 def train_w2v(w2v_dim, w2v_epochs, w2v_min_len):
@@ -127,7 +140,7 @@ if __name__ == "__main__":
 
         logging.info("ClickStream loaded.")
         prepare_file_for_w2v(cs, w2v_min_len)
-        logging.info('Data for word2vec written to file.')
+        logging.info("Data for word2vec written to file.")
         del cs
 
     train_w2v(w2v_dim, w2v_epochs, w2v_min_len)

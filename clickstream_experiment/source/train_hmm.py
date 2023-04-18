@@ -10,7 +10,11 @@ from icecream import ic
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 sys.path.insert(1, PROJECT_PATH)
-logging.basicConfig(filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log", encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(
+    filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log",
+    encoding="utf-8",
+    level=logging.DEBUG,
+)
 
 from torchHMM.model.discretized_HMM import DiscreteHMM
 
@@ -90,8 +94,15 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     )
 
     myHMM.provide_nodes(vecs, force=False)
-    batch_size = 50000
-    discrete_index = np.concatenate([myHMM.discretize(vecs[(batch_size * i):(batch_size * (i + 1))], force=False) for i in range(vecs.shape[0] // batch_size + 1)])
+    batch_size = 25000
+    discrete_index = np.concatenate(
+        [
+            myHMM.discretize(
+                vecs[(batch_size * i) : (batch_size * (i + 1))], force=False
+            )
+            for i in range(vecs.shape[0] // batch_size + 1)
+        ]
+    )
 
     print("discretized.")
 
@@ -101,17 +112,27 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     ) as f:
         Xd = [
             np.array(
-                [discrete_index[vectors.key_to_index[word]] for word in line.replace("\n", "").split(" ")]
+                [
+                    discrete_index[vectors.key_to_index[word]]
+                    for word in line.replace("\n", "").split(" ")
+                ]
             ).reshape(-1, 1)
             for line in f.readlines()
         ]
         ic(len(Xd))
         subsample_size = 50000
-        indexes = np.random.choice(len(Xd), size=int(subsample_size * 1.1), replace=False)
+        indexes = np.random.choice(
+            len(Xd), size=int(subsample_size * 1.1), replace=False
+        )
         ic(indexes.shape)
         f.seek(0)
         Xc = [
-            np.concatenate([vectors[word].reshape(1, -1) for word in line.replace("\n", "").split(" ")])
+            np.concatenate(
+                [
+                    vectors[word].reshape(1, -1)
+                    for word in line.replace("\n", "").split(" ")
+                ]
+            )
             for i, line in enumerate(f)
             if i in indexes.tolist()
         ]
@@ -174,17 +195,17 @@ if __name__ == "__main__":
     standardHMM.fit(Xc_train, lengths_sub_train)
 
     print(
-        f"Loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test)}"
+        f"Mean loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
     logging.debug(
-        f"Loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test)}"
+        f"Mean loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
 
     myHMM.fit(X=Xc_test, lengths=lengths_test, Xd=Xd_train, lengths_d=lengths_train)
 
     print(
-        f"Loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test)}"
+        f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
     logging.debug(
-        f"Loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test)}"
+        f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
