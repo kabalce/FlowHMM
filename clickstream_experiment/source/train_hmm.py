@@ -112,7 +112,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         f.seek(0)
         Xc = [
             np.concatenate([vectors[word].reshape(1, -1) for word in line.replace("\n", "").split(" ")])
-            for i, line in enumerate(f[:100000])  # TODO
+            for i, line in enumerate(f)
             if i in indexes.tolist()
         ]
         ic(len(Xc))
