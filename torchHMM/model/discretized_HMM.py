@@ -446,10 +446,11 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: iterate
         # TODO: loguj do convergence monitora raz na jakiś czas
         # TODO: parametrize
+        self.model.to(device)
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
 
-        self.model.to(device)
+
 
         for i in range(self.max_epoch):
             optimizer.zero_grad()
