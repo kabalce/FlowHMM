@@ -116,9 +116,9 @@ class HmmOptim(torch.nn.Module):
         B = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    dist.log_prob(torch.Tensor(nodes.T)).reshape(
+                    torch.exp(dist.log_prob(torch.Tensor(nodes.T))).reshape(
                         1, -1
-                    )  # TODO: zwykłe prob (bez loga)
+                    )
                     for dist in distributions
                 ],
                 dim=0,
