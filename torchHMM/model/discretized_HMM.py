@@ -432,8 +432,9 @@ class DiscreteHMM(hmm.GaussianHMM):
         self,
         Xd: npt.NDArray,
         Xc: Optional[npt.NDArray],
-        lengths: Optional[npt.NDArray[int]] = None,
-            early_stopping: bool = False
+        lengthsd: Optional[npt.NDArray[int]] = None,
+        lengthsc: Optional[npt.NDArray[int]] = None,
+        early_stopping: bool = False
     ):
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
@@ -444,7 +445,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: iterate
         # TODO: loguj do convergence monitora raz na jakiś czas
         # TODO: parametrize
-        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengths))
+        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd))
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
@@ -460,7 +461,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.startprob_,
                 ) = self.model.get_model_params()
                 if Xc is not None:
-                    score = self.score(Xc, lengths)
+                    score = self.score(Xc, lengthsc)
                     self.monitor_.report(score)
                     if (
                         early_stopping and
@@ -502,7 +503,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         elif self.learning_alg == "em_dense":
             self._fit_em_dense(X, lengths_d)
         elif self.learning_alg == "cooc":
-            self._fit_cooc(Xd, X, lengths_d, early_stopping)
+            self._fit_cooc(Xd, X, lengths_d, lengths, early_stopping)
         else:
             _log.error(
                 f"Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}"
