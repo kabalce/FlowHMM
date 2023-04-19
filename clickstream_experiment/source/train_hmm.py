@@ -7,6 +7,7 @@ import logging
 import sys
 from icecream import ic
 import pickle as pkl
+import datetime
 
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
@@ -165,7 +166,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         myHMM.nodes
     }
 
-    with open(f".pkl", 'rb') as f:
+    with open(f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_test_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}_{datetime.datetime.now()}.pkl", 'rb') as f:
         pkl.dump(results, f)
 
     return (
