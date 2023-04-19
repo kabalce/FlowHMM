@@ -436,6 +436,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         lengthsc: Optional[npt.NDArray[int]] = None,
         early_stopping: bool = False
     ):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
         :param Xd: Disretized data (represented as cluster indexes)
@@ -445,8 +446,11 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: iterate
         # TODO: loguj do convergence monitora raz na jakiś czas
         # TODO: parametrize
-        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd))
+        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+
+        self.model.to(device)
+
         for i in range(self.max_epoch):
             optimizer.zero_grad()
             torch.nn.KLDivLoss(reduction="sum")(
