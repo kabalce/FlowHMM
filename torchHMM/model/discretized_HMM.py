@@ -14,6 +14,8 @@ from typing import Optional
 # TODO: recheck cavariance learning in HmmOptim!
 # TODO: recheck Latin cube
 
+# TODO: add custom covergence  monitor
+
 
 # Future features:
 # try reading data out of file when using quasi random nodes
@@ -431,6 +433,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xd: npt.NDArray,
         Xc: Optional[npt.NDArray],
         lengths: Optional[npt.NDArray[int]] = None,
+            early_stopping: bool = False
     ):
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
@@ -460,6 +463,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                     score = self.score(Xc, lengths)
                     self.monitor_.report(score)
                     if (
+                        early_stopping and
                         self.monitor_.converged
                     ):  # TODO: monitor convergence from torch training
                         break
@@ -479,6 +483,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xd: Optional[npt.NDArray] = None,
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
+            early_stopping: bool = False
     ):
         # TODO: fix docstrings
         """
@@ -497,7 +502,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         elif self.learning_alg == "em_dense":
             self._fit_em_dense(X, lengths_d)
         elif self.learning_alg == "cooc":
-            self._fit_cooc(Xd, X, lengths_d)
+            self._fit_cooc(Xd, X, lengths_d, early_stopping)
         else:
             _log.error(
                 f"Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}"

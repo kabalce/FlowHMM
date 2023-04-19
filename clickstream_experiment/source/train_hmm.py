@@ -146,7 +146,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
 
     lengths_train = np.array([x.shape[0] for x in Xd_train])
     lengths_sub_train = np.array([x.shape[0] for x in Xc_train])
-    lengths_test = np.array([x.shape[0] for x in Xd_test])
+    lengths_test = np.array([x.shape[0] for x in Xc_test])
 
     Xd_train = np.concatenate(Xd_train)
     Xd_test = np.concatenate(Xd_test)
