@@ -6,6 +6,7 @@ from hmmlearn import hmm
 import logging
 import sys
 from icecream import ic
+import pickle as pkl
 
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
@@ -152,6 +153,21 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     Xd_test = np.concatenate(Xd_test)
     Xc_train = np.concatenate(Xc_train)
     Xc_test = np.concatenate(Xc_test)
+
+    results = {
+        Xd_train,
+        Xd_test,
+        Xc_train,
+        Xc_test,
+        lengths_train,
+        lengths_sub_train,
+        lengths_test,
+        myHMM.nodes
+    }
+
+    with open(f".pkl", 'rb') as f:
+        pkl.dump(results, f)
+
     return (
         Xd_train,
         Xd_test,

@@ -105,8 +105,8 @@ class HmmOptim(torch.nn.Module):
         Calculate the forward pass of the torch.nn.Module
         :return: cooc matrix from current parameters
         """
-        covars = torch.triu(self._covar_L_tensor) @ torch.transpose(
-            torch.triu(self._covar_L_tensor), 1, 2
+        covars = torch.tril(self._covar_L_tensor) @ torch.transpose(
+            torch.tril(self._covar_L_tensor), 1, 2
         )
         distributions = [
             torch.distributions.MultivariateNormal(self._means_tensor[i], covars[i])
@@ -464,6 +464,10 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
+
+                self.optim_params['lr'] = self.optim_params['lr'] * .9
+                optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+
                 if Xc is not None:
                     score = self.score(Xc, lengthsc)
                     self.monitor_.report(score)
