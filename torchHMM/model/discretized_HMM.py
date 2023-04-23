@@ -71,19 +71,21 @@ class HmmOptim(torch.nn.Module):
             )
         )
 
-        transmat = (
+        transmat = np.abs(
             transmat_
             if transmat_ is not None
             else np.random.standard_normal(n_components * n_components).reshape(
                 n_components, n_components
-            ).abs()
+            )
         )
         transmat /= transmat.sum(axis=1)[:, np.newaxis]
 
-        vals, vecs = np.linalg.eig(transmat.T)
-        vec1 = vecs[:, np.isclose(vals, 1)].reshape(-1)
-        startprob = vec1 / vec1.sum()
-        
+        startprob = np.abs(
+            startprob_
+            if startprob_ is not None
+            else np.random.standard_normal(n_components)
+        )
+        startprob /= startprob.sum()
 
         print(f"transmat: {transmat}")
         print(f"startprob: {startprob}")
@@ -384,16 +386,14 @@ class DiscreteHMM(hmm.GaussianHMM):
             n_components=self.n_components, n_dim=X.shape[1], trainable=self.params
         )
 
-        if self._needs_init("m", "means_", True):
-            torch_inits["means_"] = self.means_
-        if self._needs_init("c", "covars_", True):
-            torch_inits["covars_"] = self.covars_
-        if self._needs_init("z", "z_", True) and self._needs_init("u", "u_", True):
-            torch_inits["z_"] = self.z_
-            torch_inits["u_"] = self.u_
-        elif self._needs_init("t", "transmat_", True):
-            torch_inits["startprob_"] = self.compute_stationary(self.transmat_)
-            torch_inits["transmat_"] = self.transmat_
+        # TODO: check if placeholders are needed
+        torch_inits["means_"] = self.means_
+        torch_inits["covars_"] = self.covars_
+        # if self._needs_init("z", "z_", True) and self._needs_init("u", "u_", True):
+        #     torch_inits["z_"] = self.z_
+        #     torch_inits["u_"] = self.u_
+        torch_inits["startprob_"] = self.startprob_
+        torch_inits["transmat_"] = self.transmat_
 
         if self.learning_alg == "cooc":
             self.model = HmmOptim(**torch_inits)
