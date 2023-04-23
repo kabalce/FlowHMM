@@ -80,12 +80,10 @@ class HmmOptim(torch.nn.Module):
         )
         transmat /= transmat.sum(axis=1)[:, np.newaxis]
 
-        startprob = (
-            startprob_
-            if startprob_ is not None
-            else np.random.standard_normal(n_components).abs()
-        )
-        startprob /= startprob.sum()
+        vals, vecs = np.linalg.eig(transmat.T)
+        vec1 = vecs[:, np.isclose(vals, 1)].reshape(-1)
+        startprob = vec1 / vec1.sum()
+        
 
         print(f"transmat: {transmat}")
         print(f"startprob: {startprob}")
