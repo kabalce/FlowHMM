@@ -87,6 +87,9 @@ class HmmOptim(torch.nn.Module):
         )
         startprob /= startprob.sum()
 
+        print(f"transmat: {transmat}")
+        print(f"startprob: {startprob}")
+
         self.n_components = n_components
         self.n_dim = n_dim
         self.trainable = trainable
@@ -97,7 +100,7 @@ class HmmOptim(torch.nn.Module):
             torch.tensor(covar_L), requires_grad="c" in trainable
         )  # TODO: popraw
         self._S_unconstrained = torch.nn.Parameter(
-            torch.tensor(np.log(transmat * startprob)), requires_grad="t" in trainable
+            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable  # TODO: czemu tu był logarytm
         )
 
     def forward(self, nodes: npt.NDArray):
@@ -126,8 +129,8 @@ class HmmOptim(torch.nn.Module):
             dim=1,
         )
 
-        Ss = torch.exp(self._S_unconstrained)
-        S = Ss / Ss.sum()
+        S_ = torch.exp(self._S_unconstrained)
+        S = S_ / S_.sum()
         return B.T @ S @ B  # TODO: wyświetlaj w ewaluacji dla porównania
 
     @staticmethod
@@ -146,8 +149,8 @@ class HmmOptim(torch.nn.Module):
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
 
-        Ss = torch.exp(self._S_unconstrained)
-        S = Ss / Ss.sum()
+        S_ = torch.exp(self._S_unconstrained)
+        S = S_ /S_.sum()
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
