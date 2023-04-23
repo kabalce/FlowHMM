@@ -65,12 +65,6 @@ def parse_args():
         default="uniform",
         help="discretization technique for hmm training",
     )
-    parser.add_argument(
-        "--number-of-nodes",
-        type=int,
-        default=1000,
-        help="discretization technique for hmm training",
-    )
     args = parser.parse_args()
     return (
         args.w2v_dim,
@@ -80,7 +74,6 @@ def parse_args():
         args.hmm_min_len,
         args.n_components,
         args.discrete_meth,
-        args.number_of_nodes,
     )
 
 
@@ -189,14 +182,13 @@ if __name__ == "__main__":
         hmm_min_len,
         n_components,
         discretization_method,
-        number_of_nodes,
     ) = parse_args()
     standardHMM = hmm.GaussianHMM(n_components=n_components, n_iter=150)
     myHMM = DiscreteHMM(
         n_components=n_components,
         learning_alg="cooc",
         discretization_method=discretization_method,
-        no_nodes=number_of_nodes,
+        no_nodes=hmm_nodes,
     )
 
     (
