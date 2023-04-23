@@ -76,14 +76,14 @@ class HmmOptim(torch.nn.Module):
             if transmat_ is not None
             else np.random.standard_normal(n_components * n_components).reshape(
                 n_components, n_components
-            )
+            ).abs()
         )
         transmat /= transmat.sum(axis=1)[:, np.newaxis]
 
         startprob = (
             startprob_
             if startprob_ is not None
-            else np.random.standard_normal(n_components)
+            else np.random.standard_normal(n_components).abs()
         )
         startprob /= startprob.sum()
 
@@ -126,7 +126,7 @@ class HmmOptim(torch.nn.Module):
                 ],
                 dim=0,
             ),
-            dim=1,
+            dim=1, p=1
         )
 
         S_ = torch.exp(self._S_unconstrained)
