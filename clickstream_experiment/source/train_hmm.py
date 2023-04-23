@@ -12,11 +12,7 @@ import datetime
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 sys.path.insert(1, PROJECT_PATH)
-logging.basicConfig(
-    filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm.log",
-    encoding="utf-8",
-    level=logging.DEBUG,
-)
+
 
 from torchHMM.model.discretized_HMM import DiscreteHMM
 
@@ -149,14 +145,14 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     Xc_test = np.concatenate(Xc_test)
 
     results = {
-        Xd_train,
-        Xd_test,
-        Xc_train,
-        Xc_test,
-        lengths_train,
-        lengths_sub_train,
-        lengths_test,
-        myHMM.nodes
+        'Xd_train': Xd_train,
+        'Xd_test': Xd_test,
+        'Xc_train': Xc_train,
+        'Xc_test': Xc_test,
+        'lengths_train': lengths_train,
+        'lengths_sub_train': lengths_sub_train,
+        'lengths_test': lengths_test,
+        'myHMM.nodes': lengths_test
     }
 
     with open(f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_test_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}_{datetime.datetime.now()}.pkl", 'rb') as f:
@@ -183,6 +179,13 @@ if __name__ == "__main__":
         n_components,
         discretization_method,
     ) = parse_args()
+
+    logging.basicConfig(
+        filename=f"{PROJECT_PATH}/clickstream_experiment/logs/train_hmm_{w2v_dim}_{w2v_epochs}_{w2v_min_len}_{hmm_nodes}_{n_components}_{discretization_method}.log",
+        encoding="utf-8",
+        level=logging.DEBUG,
+    )
+
     standardHMM = hmm.GaussianHMM(n_components=n_components, n_iter=150)
     myHMM = DiscreteHMM(
         n_components=n_components,
