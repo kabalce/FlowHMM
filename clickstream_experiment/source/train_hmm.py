@@ -74,7 +74,7 @@ def parse_args():
 
 
 def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
-    data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_test_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}_{datetime.datetime.now()}.pkl"
+    data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_test_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}.pkl"
     if Path(data_path).exists():
         with open(data_path, 'rb') as f:
             data = pkl.load(f)
@@ -125,7 +125,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                 for line in f.readlines()
             ]
             ic(len(Xd))
-            subsample_size = 50000
+            subsample_size = 100000
             indexes = np.random.choice(
                 len(Xd), size=int(subsample_size * 1.1), replace=False
             )
