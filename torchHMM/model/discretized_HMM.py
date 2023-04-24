@@ -494,7 +494,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xd: Optional[npt.NDArray] = None,
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
-            early_stopping: bool = False
+        early_stopping: bool = False
     ):
         # TODO: fix docstrings
         """
@@ -504,8 +504,8 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param update_nodes: Should the nodes be re-initialized, if they are already provided.
         :return:
         """
+        self._init(X, lengths)
         if Xd is None:
-            self._init(X, lengths)
             Xd = self.discretize(X, update_nodes)
             lengths_d = lengths
         if self.learning_alg == "em":
