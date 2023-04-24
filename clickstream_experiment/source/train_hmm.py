@@ -204,6 +204,15 @@ if __name__ == "__main__":
         lengths_test,
     ) = discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len)
 
+    myHMM.fit(X=Xc_test, lengths=lengths_test, Xd=Xd_train, lengths_d=lengths_train)
+
+    print(
+        f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
+    )
+    logging.debug(
+        f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
+    )
+
     standardHMM.fit(Xc_train, lengths_sub_train)
 
     print(
@@ -213,11 +222,4 @@ if __name__ == "__main__":
         f"Mean loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
 
-    myHMM.fit(X=Xc_test, lengths=lengths_test, Xd=Xd_train, lengths_d=lengths_train)
 
-    print(
-        f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
-    )
-    logging.debug(
-        f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
-    )
