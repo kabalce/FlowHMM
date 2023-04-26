@@ -97,7 +97,7 @@ class HmmOptim(torch.nn.Module):
             torch.tensor(covar_L), requires_grad="c" in trainable
         )  # TODO: popraw
         self._S_unconstrained = torch.nn.Parameter(
-            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable  
+            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable
         )
 
     def forward(self, nodes: npt.NDArray):
@@ -434,7 +434,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         :return: co-occurrence matrix
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 88 - skąd taki dzielnik??
-        cooc_matrix = np.zeros(shape=(self.no_nodes, self.no_nodes))
+        cooc_matrix = np.zeros(shape=(self.nodes.shape[1], self.nodes.shape[1]))
         cont_seq_ind = np.ones(shape=Xd.shape[0])
         if lengths is None:
             lengths = np.array([Xd.shape[0]])
