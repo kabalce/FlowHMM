@@ -249,8 +249,8 @@ class DiscreteHMM(hmm.GaussianHMM):
         ATTENTION! Works only for 2D
         :param X: Original, continuous (gaussian) data
         """
-        n_row = int(np.sqrt(X.shape[0]))
-        n_col = X.shape[0] // n_row
+        n_row = int(np.sqrt(self.no_nodes))
+        n_col = self.no_nodes // n_row
         grid = np.concatenate([np.repeat(np.arange(n_row) / n_row, n_col).reshape(1, -1), np.tile(np.arange(n_col) / n_col, n_row).reshape(1, -1)]) + 0.05
         self.nodes = grid * np.array([[X[:, 0].max() - X[:, 0].min()], [X[:, 1].max() - X[:, 1].min()]]) + np.array([[X[:, 0].min()], [X[:, 1].min()]])
 
