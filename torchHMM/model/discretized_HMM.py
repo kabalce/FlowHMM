@@ -87,9 +87,6 @@ class HmmOptim(torch.nn.Module):
         )
         startprob /= startprob.sum()
 
-        print(f"transmat: {transmat}")
-        print(f"startprob: {startprob}")
-
         self.n_components = n_components
         self.n_dim = n_dim
         self.trainable = trainable
