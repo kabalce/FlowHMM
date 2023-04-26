@@ -97,7 +97,7 @@ class HmmOptim(torch.nn.Module):
             torch.tensor(covar_L), requires_grad="c" in trainable
         )  # TODO: popraw
         self._S_unconstrained = torch.nn.Parameter(
-            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable  # TODO: czemu tu był logarytm
+            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable  
         )
 
     def forward(self, nodes: npt.NDArray):
