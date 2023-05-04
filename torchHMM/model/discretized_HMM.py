@@ -6,6 +6,8 @@ from scipy.stats.qmc import LatinHypercube
 import torch
 from typing import Optional
 from math import prod
+
+
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
 # https://github.com/nwams/Hidden_Markov_Model-in-PyTorch
@@ -13,13 +15,12 @@ from math import prod
 
 # TODO: recheck cavariance learning in HmmOptim!
 # TODO: recheck Latin cube
-
 # TODO: add custom covergence  monitor
-
 
 # Future features:
 # try reading data out of file when using quasi random nodes
 # torch model with embeddings in separate class
+
 
 
 DISCRETIZATION_TECHNIQUES = ["random", "latin_cube_u", "latin_cube_q", "uniform", "grid"]
@@ -79,6 +80,7 @@ class HmmOptim(torch.nn.Module):
             )
         )
         transmat /= transmat.sum(axis=1)[:, np.newaxis]
+
 
         startprob = np.abs(
             startprob_
@@ -145,7 +147,6 @@ class HmmOptim(torch.nn.Module):
         :return: means, covars, transmat, startprob
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
-
         S_ = torch.exp(self._S_unconstrained)
         S = S_ /S_.sum()
         startprob = torch.sum(S, dim=1)
@@ -279,7 +280,6 @@ class DiscreteHMM(hmm.GaussianHMM):
                 axis=0,
             ),
         ).T
-
     def _provide_nodes_latin_u(self, X: npt.NDArray):  # each point in a row
         """
         Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
@@ -294,7 +294,6 @@ class DiscreteHMM(hmm.GaussianHMM):
     def _provide_nodes_uniform(self, X: npt.NDArray):
         """
         Provide nodes uniformly distributed on cuboid of observations; nodes are saved in attribute nodes
-        ATTENTION! Works only for 2D
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = (
@@ -411,7 +410,6 @@ class DiscreteHMM(hmm.GaussianHMM):
         #     torch_inits["u_"] = self.u_
         torch_inits["startprob_"] = self.startprob_
         torch_inits["transmat_"] = self.transmat_
-
         if self.learning_alg == "cooc":
             self.model = HmmOptim(**torch_inits)
 
@@ -464,11 +462,10 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: iterate
         # TODO: loguj do convergence monitora raz na jakiś czas
         # TODO: parametrize
+
         self.model.to(device)
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
-
-
 
         for i in range(self.max_epoch):
             optimizer.zero_grad()
@@ -511,6 +508,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xd: Optional[npt.NDArray] = None,
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
+
         early_stopping: bool = False
     ):
         # TODO: fix docstrings

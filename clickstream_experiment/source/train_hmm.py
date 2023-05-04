@@ -9,10 +9,10 @@ from icecream import ic
 import pickle as pkl
 import datetime
 
+
 DATA_SET = "train"
 PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent}"
 sys.path.insert(1, PROJECT_PATH)
-
 
 from torchHMM.model.discretized_HMM import DiscreteHMM
 
@@ -235,5 +235,3 @@ if __name__ == "__main__":
     logging.debug(
         f"Mean loglikelihood from standard implementation on test set: {standardHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
-
-
