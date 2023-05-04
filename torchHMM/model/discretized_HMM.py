@@ -245,8 +245,13 @@ class DiscreteHMM(hmm.GaussianHMM):
         Select random observations as nodes for discretization; nodes are saved in attribute nodes
         :param X: Original, continuous (gaussian) data
         """
-        grid = np.linspace(X.min(axis=0), X.max(axis=0), self.no_nodes)
-        self.nodes = grid.T
+        mins = X.min(axis=0)
+        maxs = X.max(axis=0)
+        dims = [1]
+        for i in range(X.shape[1]):
+            dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
+        grids = [np.linspace(mins[i], maxs[i], dims[i+1]) for i in range(X.shape[1])]
+        self.nodes = np.meshgrid(*grids)
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
