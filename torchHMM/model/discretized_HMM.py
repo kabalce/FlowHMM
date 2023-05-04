@@ -250,8 +250,9 @@ class DiscreteHMM(hmm.GaussianHMM):
         dims = [1]
         for i in range(X.shape[1]):
             dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
-        grids = [np.linspace(mins[i], maxs[i], dims[i+1]) for i in range(X.shape[1])]
-        self.nodes = np.meshgrid(*grids)
+        grids = np.vstack([np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])])
+        meshgrid = np.meshgrid(grids[0], grids[1])
+        self.nodes = np.concatenate([a.reshape(1, -1) for a in meshgrid])
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
