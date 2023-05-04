@@ -5,6 +5,8 @@ import numpy.typing as npt
 from scipy.stats.qmc import LatinHypercube
 import torch
 from typing import Optional
+from math import prod
+
 
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
@@ -13,14 +15,15 @@ from typing import Optional
 
 # TODO: recheck cavariance learning in HmmOptim!
 # TODO: recheck Latin cube
-
+# TODO: add custom covergence  monitor
 
 # Future features:
 # try reading data out of file when using quasi random nodes
 # torch model with embeddings in separate class
 
 
-DISCRETIZATION_TECHNIQUES = ["random", "latin_cube_u", "latin_cube_q", "uniform"]
+
+DISCRETIZATION_TECHNIQUES = ["random", "latin_cube_u", "latin_cube_q", "uniform", "grid"]
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ["em", "em_dense", "cooc"]
 
@@ -69,7 +72,7 @@ class HmmOptim(torch.nn.Module):
             )
         )
 
-        transmat = (
+        transmat = np.abs(
             transmat_
             if transmat_ is not None
             else np.random.standard_normal(n_components * n_components).reshape(
@@ -78,7 +81,8 @@ class HmmOptim(torch.nn.Module):
         )
         transmat /= transmat.sum(axis=1)[:, np.newaxis]
 
-        startprob = (
+
+        startprob = np.abs(
             startprob_
             if startprob_ is not None
             else np.random.standard_normal(n_components)
@@ -95,7 +99,7 @@ class HmmOptim(torch.nn.Module):
             torch.tensor(covar_L), requires_grad="c" in trainable
         )  # TODO: popraw
         self._S_unconstrained = torch.nn.Parameter(
-            torch.tensor(np.log(transmat * startprob)), requires_grad="t" in trainable
+            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable
         )
 
     def forward(self, nodes: npt.NDArray):
@@ -103,8 +107,8 @@ class HmmOptim(torch.nn.Module):
         Calculate the forward pass of the torch.nn.Module
         :return: cooc matrix from current parameters
         """
-        covars = torch.triu(self._covar_L_tensor) @ torch.transpose(
-            torch.triu(self._covar_L_tensor), 1, 2
+        covars = torch.tril(self._covar_L_tensor) @ torch.transpose(
+            torch.tril(self._covar_L_tensor), 1, 2
         )
         distributions = [
             torch.distributions.MultivariateNormal(self._means_tensor[i], covars[i])
@@ -114,18 +118,18 @@ class HmmOptim(torch.nn.Module):
         B = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    dist.log_prob(torch.Tensor(nodes.T)).reshape(
+                    torch.exp(dist.log_prob(torch.Tensor(nodes.T))).reshape(
                         1, -1
-                    )  # TODO: zwykłe prob (bez loga)
+                    )
                     for dist in distributions
                 ],
                 dim=0,
             ),
-            dim=1,
+            dim=1, p=1
         )
 
-        Ss = torch.exp(self._S_unconstrained)
-        S = Ss / Ss.sum()
+        S_ = torch.exp(self._S_unconstrained)
+        S = S_ / S_.sum()
         return B.T @ S @ B  # TODO: wyświetlaj w ewaluacji dla porównania
 
     @staticmethod
@@ -143,9 +147,8 @@ class HmmOptim(torch.nn.Module):
         :return: means, covars, transmat, startprob
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
-
-        Ss = torch.exp(self._S_unconstrained)
-        S = Ss / Ss.sum()
+        S_ = torch.exp(self._S_unconstrained)
+        S = S_ /S_.sum()
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
@@ -238,9 +241,25 @@ class DiscreteHMM(hmm.GaussianHMM):
         self.l = l
         self.z_, self.u_ = None, None
 
+    def _provide_nodes_grid(self, X: npt.NDArray):
+        """
+        Select random observations as nodes for discretization; nodes are saved in attribute nodes
+        :param X: Original, continuous (gaussian) data
+        """
+        mins = X.min(axis=0)
+        maxs = X.max(axis=0)
+        dims = [1]
+        for i in range(X.shape[1]):
+            dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
+        grids = np.vstack([np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])])
+        meshgrid = np.meshgrid(grids[0], grids[1])
+        self.nodes = np.concatenate([a.reshape(-1, 1) for a in meshgrid], axis=1).T
+
+
     def _provide_nodes_random(self, X: npt.NDArray):
         """
         Select random observations as nodes for discretization; nodes are saved in attribute nodes
+        Works for any dimension
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = X[
@@ -250,27 +269,27 @@ class DiscreteHMM(hmm.GaussianHMM):
     def _provide_nodes_latin_q(self, X: npt.NDArray):
         """
         Provide nodes from CDF on latin qube; nodes are saved in attribute nodes
+        Works for any dimension
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = np.apply_along_axis(
-            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes) :]),
+            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes):]),
             0,
             np.concatenate(
-                [X, LatinHypercube(self.no_nodes).random(X.shape[1]).transpose()],
+                [X, LatinHypercube(X.shape[1]).random(self.no_nodes)],
                 axis=0,
             ),
-        ).transpose()
-
+        ).T
     def _provide_nodes_latin_u(self, X: npt.NDArray):  # each point in a row
         """
         Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
         :param X:  Original, continuous (gaussian) data
         """
         self.nodes = (
-            LatinHypercube(self.no_nodes).random(X.shape[1]).transpose()
+            LatinHypercube(X.shape[1]).random(self.no_nodes)
             * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]
             + X.min(axis=0)[np.newaxis, :]
-        ).transpose()
+        ).T
 
     def _provide_nodes_uniform(self, X: npt.NDArray):
         """
@@ -297,6 +316,8 @@ class DiscreteHMM(hmm.GaussianHMM):
             pass
         elif self.discretization_method == "random":
             self._provide_nodes_random(X)
+        elif self.discretization_method == "grid":
+            self._provide_nodes_grid(X)
         elif self.discretization_method == "latin_cube_q":
             self._provide_nodes_latin_q(X)
         elif self.discretization_method == "latin_cube_u":
@@ -381,17 +402,14 @@ class DiscreteHMM(hmm.GaussianHMM):
             n_components=self.n_components, n_dim=X.shape[1], trainable=self.params
         )
 
-        if self._needs_init("m", "means_", True):
-            torch_inits["means_"] = self.means_
-        if self._needs_init("c", "covars_", True):
-            torch_inits["covars_"] = self.covars_
-        if self._needs_init("z", "z_", True) and self._needs_init("u", "u_", True):
-            torch_inits["z_"] = self.z_
-            torch_inits["u_"] = self.u_
-        elif self._needs_init("t", "transmat_", True):
-            torch_inits["startprob_"] = self.compute_stationary(self.transmat_)
-            torch_inits["transmat_"] = self.transmat_
-
+        # TODO: check if placeholders are needed
+        torch_inits["means_"] = self.means_
+        torch_inits["covars_"] = self.covars_
+        # if self._needs_init("z", "z_", True) and self._needs_init("u", "u_", True):
+        #     torch_inits["z_"] = self.z_
+        #     torch_inits["u_"] = self.u_
+        torch_inits["startprob_"] = self.startprob_
+        torch_inits["transmat_"] = self.transmat_
         if self.learning_alg == "cooc":
             self.model = HmmOptim(**torch_inits)
 
@@ -416,7 +434,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         :return: co-occurrence matrix
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 88 - skąd taki dzielnik??
-        cooc_matrix = np.zeros(shape=(self.no_nodes, self.no_nodes))
+        cooc_matrix = np.zeros(shape=(self.nodes.shape[1], self.nodes.shape[1]))
         cont_seq_ind = np.ones(shape=Xd.shape[0])
         if lengths is None:
             lengths = np.array([Xd.shape[0]])
@@ -430,8 +448,11 @@ class DiscreteHMM(hmm.GaussianHMM):
         self,
         Xd: npt.NDArray,
         Xc: Optional[npt.NDArray],
-        lengths: Optional[npt.NDArray[int]] = None,
+        lengthsd: Optional[npt.NDArray[int]] = None,
+        lengthsc: Optional[npt.NDArray[int]] = None,
+        early_stopping: bool = False
     ):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
         :param Xd: Disretized data (represented as cluster indexes)
@@ -441,8 +462,11 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: iterate
         # TODO: loguj do convergence monitora raz na jakiś czas
         # TODO: parametrize
-        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengths))
+
+        self.model.to(device)
+        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+
         for i in range(self.max_epoch):
             optimizer.zero_grad()
             torch.nn.KLDivLoss(reduction="sum")(
@@ -456,10 +480,15 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
+
+                self.optim_params['lr'] = self.optim_params['lr'] * .9
+                optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+
                 if Xc is not None:
-                    score = self.score(Xc, lengths)
+                    score = self.score(Xc, lengthsc)
                     self.monitor_.report(score)
                     if (
+                        early_stopping and
                         self.monitor_.converged
                     ):  # TODO: monitor convergence from torch training
                         break
@@ -479,6 +508,8 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xd: Optional[npt.NDArray] = None,
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
+
+        early_stopping: bool = False
     ):
         # TODO: fix docstrings
         """
@@ -488,8 +519,8 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param update_nodes: Should the nodes be re-initialized, if they are already provided.
         :return:
         """
+        self._init(X, lengths)
         if Xd is None:
-            self._init(X, lengths)
             Xd = self.discretize(X, update_nodes)
             lengths_d = lengths
         if self.learning_alg == "em":
@@ -497,7 +528,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         elif self.learning_alg == "em_dense":
             self._fit_em_dense(X, lengths_d)
         elif self.learning_alg == "cooc":
-            self._fit_cooc(Xd, X, lengths_d)
+            self._fit_cooc(Xd, X, lengths_d, lengths, early_stopping)
         else:
             _log.error(
                 f"Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}"
