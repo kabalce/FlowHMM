@@ -272,10 +272,10 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = np.apply_along_axis(
-            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes) :]),
+            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes):]),
             0,
             np.concatenate(
-                [X, LatinHypercube(X.shape[1]).random(self.no_nodes).T],
+                [X, LatinHypercube(X.shape[1]).random(self.no_nodes)],
                 axis=0,
             ),
         ).T
