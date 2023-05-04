@@ -5,7 +5,7 @@ import numpy.typing as npt
 from scipy.stats.qmc import LatinHypercube
 import torch
 from typing import Optional
-
+from math import prod
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
 # https://github.com/nwams/Hidden_Markov_Model-in-PyTorch
@@ -243,13 +243,10 @@ class DiscreteHMM(hmm.GaussianHMM):
     def _provide_nodes_grid(self, X: npt.NDArray):
         """
         Select random observations as nodes for discretization; nodes are saved in attribute nodes
-        ATTENTION! Works only for 2D
         :param X: Original, continuous (gaussian) data
         """
-        n_row = int(np.sqrt(self.no_nodes))
-        n_col = self.no_nodes // n_row
-        grid = np.concatenate([np.repeat(np.arange(n_row) / n_row, n_col).reshape(1, -1), np.tile(np.arange(n_col) / n_col, n_row).reshape(1, -1)]) + 0.05
-        self.nodes = grid * np.array([[X[:, 0].max() - X[:, 0].min()], [X[:, 1].max() - X[:, 1].min()]]) + np.array([[X[:, 0].min()], [X[:, 1].min()]])
+        grid = np.linspace(X.min(axis=0), X.max(axis=0), self.no_nodes)
+        self.nodes = grid
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
@@ -280,7 +277,6 @@ class DiscreteHMM(hmm.GaussianHMM):
     def _provide_nodes_latin_u(self, X: npt.NDArray):  # each point in a row
         """
         Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
-        ATTENTION! Works only for 2D
         :param X:  Original, continuous (gaussian) data
         """
         self.nodes = (
