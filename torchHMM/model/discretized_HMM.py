@@ -275,10 +275,10 @@ class DiscreteHMM(hmm.GaussianHMM):
             lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes) :]),
             0,
             np.concatenate(
-                [X, LatinHypercube(self.no_nodes).random(X.shape[1]).transpose()],
+                [X, LatinHypercube(X.shape[1]).random(self.no_nodes).T],
                 axis=0,
             ),
-        ).transpose()
+        ).T
 
     def _provide_nodes_latin_u(self, X: npt.NDArray):  # each point in a row
         """
@@ -286,10 +286,10 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param X:  Original, continuous (gaussian) data
         """
         self.nodes = (
-            LatinHypercube(self.no_nodes).random(X.shape[1]).transpose()
+            LatinHypercube(X.shape[1]).random(self.no_nodes)
             * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]
             + X.min(axis=0)[np.newaxis, :]
-        ).transpose()
+        ).T
 
     def _provide_nodes_uniform(self, X: npt.NDArray):
         """
