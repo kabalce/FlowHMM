@@ -246,7 +246,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param X: Original, continuous (gaussian) data
         """
         grid = np.linspace(X.min(axis=0), X.max(axis=0), self.no_nodes)
-        self.nodes = grid
+        self.nodes = grid.T
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
