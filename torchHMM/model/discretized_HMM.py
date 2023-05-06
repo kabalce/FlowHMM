@@ -139,7 +139,7 @@ class HmmOptim(torch.nn.Module):
         :param tens: torch tensor (or parameter)
         :return: numpy array
         """
-        return tens.detach().numpy()  # TODO: check if it will be working in all cases
+        return tens.cpu().detach().numpy()  # TODO: check if it will be working in all cases
 
     def get_model_params(self):
         """
