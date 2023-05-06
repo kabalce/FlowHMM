@@ -102,7 +102,7 @@ class HmmOptim(torch.nn.Module):
             torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable
         )
 
-    def forward(self, nodes: npt.NDArray):
+    def forward(self, nodes):
         """
         Calculate the forward pass of the torch.nn.Module
         :return: cooc matrix from current parameters
@@ -118,7 +118,7 @@ class HmmOptim(torch.nn.Module):
         B = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    torch.exp(dist.log_prob(torch.Tensor(nodes.T))).reshape(
+                    torch.exp(dist.log_prob(nodes)).reshape(
                         1, -1
                     )
                     for dist in distributions
@@ -139,7 +139,7 @@ class HmmOptim(torch.nn.Module):
         :param tens: torch tensor (or parameter)
         :return: numpy array
         """
-        return tens.detach().numpy()  # TODO: check if it will be working in all cases
+        return tens.cpu().detach().numpy()  # TODO: check if it will be working in all cases
 
     def get_model_params(self):
         """
@@ -466,11 +466,11 @@ class DiscreteHMM(hmm.GaussianHMM):
         self.model.to(device)
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
-
+        nodes_tensor = torch.Tensor(self.nodes.T).to(device)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
             torch.nn.KLDivLoss(reduction="sum")(
-                self.model(self.nodes), cooc_matrix
+                self.model(nodes_tensor), cooc_matrix
             ).backward()
             optimizer.step()
             if i % 1000 == 0:  # TODO: select properly
