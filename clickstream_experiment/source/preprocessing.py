@@ -1,6 +1,7 @@
 import argparse
 import pickle as pkl
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import os
 import matplotlib.pyplot as plt
