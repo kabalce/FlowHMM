@@ -78,6 +78,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     if Path(data_path).exists():
         with open(data_path, 'rb') as f:
             data = pkl.load(f)
+        myHMM.nodes = data['myHMM.nodes']
         return (
             data['Xd_train'],
             data['Xd_test'],
@@ -124,12 +125,10 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                 ).reshape(-1, 1)
                 for line in f.readlines()
             ]
-            ic(len(Xd))
             subsample_size = 100000
             indexes = np.random.choice(
                 len(Xd), size=int(subsample_size * 1.1), replace=False
             )
-            ic(indexes.shape)
             f.seek(0)
             Xc = [
                 np.concatenate(
@@ -141,7 +140,6 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                 for i, line in enumerate(f)
                 if i in indexes.tolist()
             ]
-            ic(len(Xc))
 
         Xd_train = [Xd[i] for i in range(len(Xd)) if i not in indexes[subsample_size:]]
         Xd_test = [Xd[i] for i in indexes[subsample_size:]]
@@ -166,7 +164,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             'lengths_train': lengths_train,
             'lengths_sub_train': lengths_sub_train,
             'lengths_test': lengths_test,
-            'myHMM.nodes': lengths_test
+            'myHMM.nodes': myHMM.nodes
         }
 
         with open(data_path, 'wb') as f:
