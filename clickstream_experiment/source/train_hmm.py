@@ -74,7 +74,7 @@ def parse_args():
 
 
 def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
-    data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_test_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}.pkl"
+    data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_valid_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}.pkl"
     if Path(data_path).exists():
         with open(data_path, 'rb') as f:
             data = pkl.load(f)
