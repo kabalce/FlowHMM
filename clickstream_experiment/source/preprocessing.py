@@ -107,7 +107,7 @@ def prepare_df_for_tagnn(click_stream, w2v_min_len):
         [   # 'sessionID', 'timestamp', 'itemID', 'category'
             f.write(f"{s.session_id} {e.ts} {e.item_id} {e.type}" + "\n")
             for s in click_stream.sessions
-            for e in s.event_list()
+            for e in s.event_list
             if len(s.event_list) >= w2v_min_len
         ]
 
