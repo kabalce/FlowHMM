@@ -226,6 +226,8 @@ if __name__ == "__main__":
         f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
 
+    # TODO: extend evaluation
+
     standardHMM.fit(Xc_train, lengths_sub_train)
 
     print(
