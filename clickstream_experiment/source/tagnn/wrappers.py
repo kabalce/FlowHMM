@@ -5,8 +5,13 @@ import numpy as np
 import torch
 import wandb
 
-from src.data.abx import calculate_abx_score
-from src.models.tagnn.utils import trans_to_cuda, trans_to_cpu
+import sys
+
+PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent.parent}"
+sys.path.insert(1, PROJECT_PATH)
+
+# from src.data.abx import calculate_abx_score
+from clickstream_experiment.source.tagnn.utils import trans_to_cuda, trans_to_cpu
 
 
 class ModelWrapper:
@@ -66,7 +71,7 @@ class ModelWrapper:
 
         if abx_tests_pdf is not None:
             embeddings = np.array(self.model.embedding.weight.cpu().detach())
-            abx_scores = calculate_abx_score(embeddings, abx_tests_pdf)
+            abx_scores = 0
             metrics.update(abx_scores)
 
         return metrics
