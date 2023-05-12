@@ -7,9 +7,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from clickstream_experiment.source.tagnn.data.abx import prepare_abx_tests  # TODO
-from clickstream_experiment.source.tagnn.models.embeddings.item2vec import Item2Vec  # TODO
-from clickstream_experiment.source.tagnn.utils.utils import normalize, flatten  # TODO
+from src.data.abx import prepare_abx_tests
+from src.models.embeddings.item2vec import Item2Vec
+from src.utils.utils import normalize, flatten
 
 
 def build_graph(train_data):
@@ -154,24 +154,24 @@ def find_edge_weights(sequences):
 
 
 def read_data(data_path, dataset, validation, valid_portion):
-    train_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_5.pkl", 'rb'))
+    train_data = pickle.load(open(data_path / f"{dataset}/train.txt", 'rb'))
     if validation:
         train_data, valid_data = split_validation(train_data, valid_portion, seed=42)
         test_data = valid_data
     else:
-        test_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_5_TEST.pkl", 'rb'))
+        test_data = pickle.load(open(data_path / f"{dataset}/test.txt", 'rb'))
 
     clicks_pdf = pd.read_csv(
-        data_path / 'TAGNN_df_5_train.dat',
+        data_path / 'yoochoose-clicks.dat',
         header=None,
         names=['sessionID', 'timestamp', 'itemID', 'category'],
         parse_dates=['timestamp'],
         dtype={'sessionID': int, 'itemID': int, 'category': str},
     )
 
-    # item2id = pickle.load(open(data_path / "item2id.txt", 'rb'))
-    # id2item = {new_id: item_id for item_id, new_id in item2id.items()}
-    train_data = pickle.load(open(data_path / "train.txt", 'rb'))
+    item2id = pickle.load(open(data_path / "item2id.txt", 'rb'))
+    id2item = {new_id: item_id for item_id, new_id in item2id.items()}
+    train_data = pickle.load(open(data_path / "yoochoose1_64/train.txt", 'rb'))
 
     dates = pickle.load(open(data_path / "yoochoose1_64/dates.txt", 'rb'))
     dates = pd.to_datetime(dates, unit='s')
@@ -179,7 +179,7 @@ def read_data(data_path, dataset, validation, valid_portion):
         dates = dates.tz_localize('UTC')
     max_date = max(dates)
 
-    items_in_train = np.unique(list(flatten(train_data))).astype('int64')
+    items_in_train = np.unique(list(map(lambda new_id: id2item[new_id], flatten(train_data)))).astype('int64')
 
     filtered_clicks_pdf = clicks_pdf[clicks_pdf['timestamp'] < max_date]
 
@@ -187,8 +187,6 @@ def read_data(data_path, dataset, validation, valid_portion):
     long_sessions = long_sessions.index[long_sessions]
 
     filtered_clicks_pdf = filtered_clicks_pdf[filtered_clicks_pdf['sessionID'].isin(long_sessions)]
-
-    item2id = {i: i for i in items_in_train}
 
     return train_data, test_data, filtered_clicks_pdf, items_in_train, item2id
 
