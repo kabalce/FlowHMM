@@ -9,7 +9,7 @@ PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent.parent}"
 sys.path.insert(1, PROJECT_PATH)
 from clickstream_experiment.source.tagnn.model import SessionGraph
 from clickstream_experiment.source.tagnn.wrappers import Trainer
-from clickstream_experiment.source.tagnn.utils import (
+from clickstream_experiment.source.tagnn.utils_ import (
     Data, trans_to_cuda, find_edge_weights, read_data, calculate_embeddings, calculate_abx
 )
 
