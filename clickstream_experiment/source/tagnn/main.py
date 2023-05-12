@@ -3,7 +3,10 @@ import pickle
 from pathlib import Path
 
 import wandb
+import sys
 
+PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent.parent}"
+sys.path.insert(1, PROJECT_PATH)
 from clickstream_experiment.source.tagnn.model import SessionGraph
 from clickstream_experiment.source.tagnn.wrappers import Trainer
 from clickstream_experiment.source.tagnn.utils import (
