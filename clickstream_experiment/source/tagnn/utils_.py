@@ -162,7 +162,7 @@ def read_data(data_path, dataset, validation, valid_portion):
         test_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_10_test.pkl", 'rb'))
 
     clicks_pdf = pd.read_csv(
-        data_path / 'TAGNN_df_10_train.dat',
+        data_path / 'preprocessed_data/TAGNN_df_10_train.dat',
         header=None,
         names=['sessionID', 'timestamp', 'itemID', 'category'],
         parse_dates=['timestamp'],
