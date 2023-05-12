@@ -3,7 +3,7 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 import pandas as pd
 from gensim.models import Word2Vec
-from clickstream_experiment.source.tagnn.data.abx import calculate_abx_score 
+from clickstream_experiment.source.tagnn.data.abx import calculate_abx_score
 
 
 class Item2Vec:

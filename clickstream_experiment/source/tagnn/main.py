@@ -14,8 +14,8 @@ from clickstream_experiment.source.tagnn.utils_ import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', default='/Ziob/klaudia/FlowHMM/clickstream_experiment/data/processed_data')
-parser.add_argument('--dataset', default='TAGNN_df_10_', help='dataset name: diginetica/yoochoose1_4/yoochoose1_64/sample')
+parser.add_argument('--data_path', default='/Ziob/klaudia/FlowHMM/clickstream_experiment/data/')
+parser.add_argument('--dataset', default='processed_data', help='dataset name: diginetica/yoochoose1_4/yoochoose1_64/sample')
 parser.add_argument('--batchSize', type=int, default=32, help='input batch size')
 parser.add_argument('--hiddenSize', type=int, default=100, help='hidden state size')
 parser.add_argument('--epoch', type=int, default=30, help='the number of epochs to train for')
@@ -48,7 +48,7 @@ def main():
     data_path = Path(opt.data_path)
 
     dataset_version = data_path.parts[-1]
-    name = f"TAGNN_{opt.dataset}_{dataset_version}" if opt.name is None else opt.name
+    name = f"TAGNN_{opt.dataset}_{dataset_version}_train" if opt.name is None else opt.name
     wandb.init(project="tagnn", entity="cirglaboratory", name=name, config=opt)
 
     if opt.model_dir is not None:
