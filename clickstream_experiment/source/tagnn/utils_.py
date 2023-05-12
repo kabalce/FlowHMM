@@ -154,15 +154,15 @@ def find_edge_weights(sequences):
 
 
 def read_data(data_path, dataset, validation, valid_portion):
-    train_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_5.pkl", 'rb'))
+    train_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_10_train.pkl", 'rb'))
     if validation:
         train_data, valid_data = split_validation(train_data, valid_portion, seed=42)
         test_data = valid_data
     else:
-        test_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_5_TEST.pkl", 'rb'))
+        test_data = pickle.load(open(data_path / f"{dataset}/TAGNN_seq_10_test.pkl", 'rb'))
 
     clicks_pdf = pd.read_csv(
-        data_path / 'TAGNN_df_5_train.dat',
+        data_path / 'TAGNN_df_10_train.dat',
         header=None,
         names=['sessionID', 'timestamp', 'itemID', 'category'],
         parse_dates=['timestamp'],
