@@ -130,6 +130,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                 len(Xd), size=int(subsample_size * 1.1), replace=False
             )
             f.seek(0)
+            indexes_l = indexes.tolist()
             Xc = [
                 np.concatenate(
                     [
@@ -138,7 +139,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                     ]
                 )
                 for i, line in enumerate(f)
-                if i in indexes.tolist()
+                if i in indexes_l
             ]
 
         Xd_train = [Xd[i] for i in range(len(Xd)) if i not in indexes[subsample_size:]]
@@ -224,6 +225,8 @@ if __name__ == "__main__":
     logging.debug(
         f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
+
+    # TODO: extend evaluation
 
     standardHMM.fit(Xc_train, lengths_sub_train)
 
