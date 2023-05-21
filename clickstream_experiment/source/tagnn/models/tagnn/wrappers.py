@@ -5,8 +5,13 @@ import numpy as np
 import torch
 import wandb
 
-from src.data.abx import calculate_abx_score
-from src.models.tagnn.utils import trans_to_cuda, trans_to_cpu
+import sys
+
+PROJECT_PATH = f"{Path(__file__).absolute().parent.parent.parent.parent}"
+sys.path.insert(1, PROJECT_PATH)
+
+from clickstream_experiment.source.tagnn.data.abx import calculate_abx_score  # TODO
+from clickstream_experiment.source.tagnn.utils_ import trans_to_cuda, trans_to_cpu
 
 
 class ModelWrapper:
