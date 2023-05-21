@@ -47,11 +47,11 @@ class GNN(Module):
 class SessionGraph(Module):
     def __init__(self, opt, n_node, init_embeddings=None):
         super(SessionGraph, self).__init__()
-        self.hidden_size = opt.hiddenSize
+        self.hidden_size = opt['hiddenSize']
         self.n_node = n_node
-        self.batch_size = opt.batchSize
-        self.variant = opt.variant
-        self.use_target = not opt.ignore_target
+        self.batch_size = opt['batchSize']
+        self.variant = opt['variant']
+        self.use_target = not opt['ignore_target']
         if init_embeddings is not None:
             self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(init_embeddings))
         else:
