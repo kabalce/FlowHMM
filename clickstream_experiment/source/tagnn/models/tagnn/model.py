@@ -56,7 +56,7 @@ class SessionGraph(Module):
             self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(init_embeddings))
         else:
             self.embedding = nn.Embedding(self.n_node, self.hidden_size)
-        self.gnn = GNN(self.hidden_size, step=opt.step)
+        self.gnn = GNN(self.hidden_size, step=opt['step'])
         self.linear_one = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.linear_two = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.linear_three = nn.Linear(self.hidden_size, 1, bias=False)
@@ -66,8 +66,8 @@ class SessionGraph(Module):
             self.linear_transform = nn.Linear(self.hidden_size * 2, self.hidden_size, bias=True)
         self.linear_t = nn.Linear(self.hidden_size, self.hidden_size, bias=False)  #target attention
         self.loss_function = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.lr, weight_decay=opt.l2)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=opt.lr_dc_step, gamma=opt.lr_dc)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt['lr'], weight_decay=opt['l2'])
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=opt['lr_dc_step'], gamma=opt['lr_dc'])
         self.reset_parameters()
 
     def reset_parameters(self):
