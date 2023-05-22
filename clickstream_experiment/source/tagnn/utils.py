@@ -7,9 +7,26 @@ import numpy as np
 import pandas as pd
 import torch
 
-from clickstream_experiment.source.tagnn_full.data.abx import prepare_abx_tests  # TODO
-from clickstream_experiment.source.tagnn_full.models.embeddings.item2vec import Item2Vec  # TODO
-from clickstream_experiment.source.tagnn_full.utils.utils import normalize, flatten  # TODO
+from clickstream_experiment.source.tagnn.abx import prepare_abx_tests  # TODO
+from clickstream_experiment.source.tagnn.item2vec import Item2Vec  # TODO
+
+
+def normalize(embeddings, new_mean=0, new_std=1):
+    mean, std = np.mean(embeddings), np.std(embeddings)
+    embeddings += (new_mean - mean)
+    embeddings *= (new_std / std)
+    return embeddings
+
+
+def flatten(xs):
+    ys = []
+    for x in xs:
+        if isinstance(x, list):
+            ys.extend(flatten(x))
+        else:
+            ys.append(x)
+
+    return ys
 
 
 def build_graph(train_data):
