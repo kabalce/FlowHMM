@@ -7,9 +7,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from clickstream_experiment.source.tagnn.data.abx import prepare_abx_tests  # TODO
-from clickstream_experiment.source.tagnn.models.embeddings.item2vec import Item2Vec  # TODO
-from clickstream_experiment.source.tagnn.utils.utils import normalize, flatten  # TODO
+from clickstream_experiment.source.tagnn_full.data.abx import prepare_abx_tests  # TODO
+from clickstream_experiment.source.tagnn_full.models.embeddings.item2vec import Item2Vec  # TODO
+from clickstream_experiment.source.tagnn_full.utils.utils import normalize, flatten  # TODO
 
 
 def build_graph(train_data):
