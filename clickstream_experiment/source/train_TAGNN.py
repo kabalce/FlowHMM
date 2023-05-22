@@ -65,13 +65,15 @@ def read_data(opt):
     else:
         test_data = pickle.load(open(f"{data_path}/TAGNN_seq_{opt.min_len}_test.pkl", 'rb'))
 
-    items_in_train = np.unique(flatten(train_data)).astype('int64')
+    items_in_train = np.unique(flatten(train_data) + flatten(test_data)).astype('int64')
 
     item2id = {items_in_train[i]: i for i in range(len(items_in_train))}
     id2item = {i: items_in_train[i] for i in range(len(items_in_train))}
 
     n_node = items_in_train.shape[0]
 
+
+    # TODO: obsłuż nierozpoznane indeksy
     train_data = [[item2id[i] for i in s] for s in train_data[0]], [item2id[i] for i in train_data[1]]
     test_data = [[item2id[i] for i in s] for s in test_data[0]], [item2id[i] for i in test_data[1]]
     return train_data, test_data, item2id, id2item, n_node
