@@ -71,7 +71,6 @@ def read_data(opt):
     id2item = {i: items_in_train[i] for i in range(len(items_in_train))}
 
     n_node = items_in_train.shape[0]
-    test_data[1].index(4682)
 
     train_data = [[item2id[i] for i in s] for s in train_data[0]], [item2id[i] for i in train_data[1]]
     test_data = [[item2id[i] for i in s] for s in test_data[0]], [item2id[i] for i in test_data[1]]
