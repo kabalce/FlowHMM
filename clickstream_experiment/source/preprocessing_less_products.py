@@ -168,7 +168,7 @@ def tidy_up(cs, cs_path_cleaned):
     cs.session_lengths = dd(zero_init)
 
     for s in cs.sessions:
-        cs.session_lengths[len(s)] += 1
+        cs.session_lengths[len(s.event_list)] += 1
         for e in s.event_list:
             cs.item_ids[e.item_id] += 1
 
