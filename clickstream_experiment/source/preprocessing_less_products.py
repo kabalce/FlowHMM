@@ -158,7 +158,7 @@ def tidy_up(cs, cs_path_cleaned):
     rare_products = set(freqs.loc[freqs < 5].index.values.tolist())
 
     # usuń rzadkie produkty z sesji
-    [setattr(s, 'event_list', list(set(s) - rare_products)) for s in cs.sessions]
+    [setattr(s, 'event_list', [e for e in s.event_list if e.item_id is not in rare_products]) for s in cs.sessions]  # list(set(s) - rare_products)
 
     # usuń za krótkie sesje
     cs.sessions = [s for s in cs.sessions if len(s) > 2]
