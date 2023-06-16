@@ -161,7 +161,7 @@ def tidy_up(cs, cs_path_cleaned):
     [setattr(s, 'event_list', [e for e in s.event_list if e.item_id not in rare_products]) for s in cs.sessions]  # list(set(s) - rare_products)
 
     # usuń za krótkie sesje
-    cs.sessions = [s for s in cs.sessions if len(s) > 2]
+    cs.sessions = [s for s in cs.sessions if len(s.event_list) > 2]
 
     # zaktualizuj atrybuty w cs
     cs.item_ids = dd(zero_init)
