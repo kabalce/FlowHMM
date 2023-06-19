@@ -42,7 +42,7 @@ def build_flow_model(n_dim, K=10):
     q0 = nf.distributions.DiagGaussian(n_dim)
     return nf.NormalizingFlow(q0=q0, flows=flows)
 
-class HmmOptim(torch.nn.Module):
+class FlowHmmOptim(torch.nn.Module):
     def __init__(
         self,
         n_components: int,
@@ -62,7 +62,7 @@ class HmmOptim(torch.nn.Module):
         :param transmat_: initial value for transition matrix
         :param trainable: string containing codes for parameters that need estimation
         """
-        super(HmmOptim, self).__init__()
+        super(FlowHmmOptim, self).__init__()
 
         # TODO: implement various covariance types (now works only for full)
 
@@ -134,10 +134,12 @@ class HmmOptim(torch.nn.Module):
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
         S_ = torch.exp(self._S_unconstrained)
-        S = S_ /S_.sum()
+        S = S_ / S_.sum()
+        if S.sum() == 0:
+            S = torch.ones(S.shape)
+            S = S / S.sum(axis=0).view(-1, 1)
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
-
         return (
             self.NFs,
             self._to_numpy(transmat),
@@ -145,7 +147,7 @@ class HmmOptim(torch.nn.Module):
         )
 
 
-class DiscreteHMM(hmm.CategoricalHMM):
+class FlowHMM(hmm.CategoricalHMM):
     def __init__(
         self,
         discretization_method: str = "random",
@@ -167,7 +169,7 @@ class DiscreteHMM(hmm.CategoricalHMM):
         init_params: str = "te",
         implementation: str = "log",
     ) -> None:
-        super(DiscreteHMM, self).__init__(
+        super(FlowHMM, self).__init__(
             n_components=n_components,
             startprob_prior=startprob_prior,
             transmat_prior=transmat_prior,
@@ -383,7 +385,7 @@ class DiscreteHMM(hmm.CategoricalHMM):
         torch_inits["startprob_"] = self.startprob_
         torch_inits["transmat_"] = self.transmat_
         if self.learning_alg == "cooc":
-            self.model = HmmOptim(**torch_inits)
+            self.model = FlowHmmOptim(**torch_inits)
 
     def _fit_em_dense(
         self, X: npt.NDArray, lengths: Optional[npt.NDArray[int]] = None
@@ -522,14 +524,14 @@ if __name__ == "__main__":
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
     obs, hid = hmm.sample(100)
 
-    myHMM = DiscreteHMM("random", 10, n_components=3, learning_alg="cooc", verbose=True)
-    myHMM2 = DiscreteHMM(
+    myHMM = FlowHMM("random", 10, n_components=3, learning_alg="cooc", verbose=True)
+    myHMM2 = FlowHMM(
         "uniform", 10, n_components=3, learning_alg="cooc", verbose=True
     )
-    myHMM3 = DiscreteHMM(
+    myHMM3 = FlowHMM(
         "latin_cube_u", 10, n_components=3, learning_alg="cooc", verbose=True
     )
-    myHMM4 = DiscreteHMM(
+    myHMM4 = FlowHMM(
         "latin_cube_q", 10, n_components=3, learning_alg="cooc", verbose=True
     )
 

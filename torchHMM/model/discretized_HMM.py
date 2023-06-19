@@ -149,6 +149,9 @@ class HmmOptim(torch.nn.Module):
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
         S_ = torch.exp(self._S_unconstrained)
         S = S_ /S_.sum()
+        if S.sum() == 0:
+            S = torch.ones(S.shape)
+            S = S / S.sum(axis=0).view(-1, 1)
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
