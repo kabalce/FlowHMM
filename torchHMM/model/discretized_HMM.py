@@ -441,7 +441,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         cont_seq_ind = np.ones(shape=Xd.shape[0])
         if lengths is None:
             lengths = np.array([Xd.shape[0]])
-        cont_seq_ind[lengths.cumsum() - 1] *= 0
+        cont_seq_ind[np.array(lengths).cumsum() - 1] *= 0
         for i in range(Xd.shape[0] - 1):
             cooc_matrix[Xd[i], Xd[i + 1]] += cont_seq_ind[i]
         cooc_matrix /= cooc_matrix.sum()
