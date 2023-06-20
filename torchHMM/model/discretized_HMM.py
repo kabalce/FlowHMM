@@ -151,7 +151,7 @@ class HmmOptim(torch.nn.Module):
         S = S_ /S_.sum()
         if S.sum() == 0:
             S = torch.ones(S.shape)
-            S = S / S.sum(axis=0).view(-1, 1)
+            S = S / S.sum(axis=1).view(-1, 1)
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 

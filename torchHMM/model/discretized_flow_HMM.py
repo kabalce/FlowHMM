@@ -134,7 +134,7 @@ class FlowHmmOptim(torch.nn.Module):
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
         S_ = torch.exp(self._S_unconstrained)
-        zero_rows =  S_.sum(axis=0) == 0
+        zero_rows = S_.sum(axis=1) == 0
         S_[zero_rows] = torch.ones(S_.shape)[zero_rows]
         S = S_ / S_.sum()
         startprob = torch.sum(S, dim=1)
@@ -518,7 +518,7 @@ class FlowHMM(hmm.CategoricalHMM):
                 f"Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}"
             )
 
-    def score(X, lengths):
+    def score(self, X, lengths):
         Xd = self.discretize(X)
         return super().score(Xd, lengths)
 
