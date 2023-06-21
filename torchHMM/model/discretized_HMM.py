@@ -155,7 +155,7 @@ class HmmOptim(torch.nn.Module):
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
-        covars = self._covar_L_tensor @ torch.transpose(self._covar_L_tensor, 1, 2)
+        covars = torch.tril(self._covar_L_tensor) @ torch.transpose(torch.tril(self._covar_L_tensor), 1, 2)
         means = self._means_tensor
         return (
             self._to_numpy(means),

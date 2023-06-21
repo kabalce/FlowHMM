@@ -519,7 +519,7 @@ class FlowHMM(hmm.CategoricalHMM):
             )
 
     def score(self, X, lengths):
-        Xd = self.discretize(X)
+        Xd = self.discretize(X, force=False)
         return super().score(Xd, lengths)
 
 
