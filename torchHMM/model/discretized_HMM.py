@@ -343,7 +343,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                 np.square(X[(i * batchsize):((i + 1) * batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(
                     axis=1),
                 axis=1,
-            ).reshape(-1)]).reshape(-1)
+            ).reshape(-1)]).astype(int).reshape(-1)
         return res
 
     def _needs_init(self, code: str, name: str, torch_check: bool = False):
