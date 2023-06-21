@@ -308,7 +308,7 @@ class FlowHMM(hmm.CategoricalHMM):
         self.provide_nodes(X, force)
         res = np.array([])
         batchsize = 1000
-        for i range((X.shape[0] // batchsize) + 1):
+        for i in range((X.shape[0] // batchsize) + 1):
             res = np.concatenate([res, np.argmin(
                 np.square(X[(i * batchsize):((i+1)*batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1),
                 axis=1,
