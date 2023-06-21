@@ -306,11 +306,14 @@ class FlowHMM(hmm.CategoricalHMM):
         :return: Discretized data (index of cluster)
         """
         self.provide_nodes(X, force)
-        return np.argmin(
-            np.square(X[:, :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1),
-            axis=1,
-        ).reshape(-1)
-
+        res = np.array([])
+        batchsize = 1000
+        for i range((X.shape[0] // batchsize) + 1):
+            res = np.concatenate([res, np.argmin(
+                np.square(X[(i * batchsize):((i+1)*batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1),
+                axis=1,
+            ).reshape(-1)])
+        return res
     def _needs_init(self, code: str, name: str, torch_check: bool = False):
         """
         Decide wether the attribute needs to be initialized (based on model setup)
