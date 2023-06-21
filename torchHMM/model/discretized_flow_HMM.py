@@ -312,7 +312,7 @@ class FlowHMM(hmm.CategoricalHMM):
             res = np.nan_to_num(np.concatenate([res, np.argmin(  # TODO:  fix this!
                 np.square(X[(i * batchsize):((i+1)*batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1),
                 axis=1,
-            ).reshape(-1)]), 0).astype(int).reshape(-1)
+            ).reshape(-1)]), 0).astype(int).reshape(-1, 1)
         return res
 
 
