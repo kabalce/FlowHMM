@@ -312,8 +312,10 @@ class FlowHMM(hmm.CategoricalHMM):
             res = np.concatenate([res, np.argmin(
                 np.square(X[(i * batchsize):((i+1)*batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(axis=1),
                 axis=1,
-            ).reshape(-1)])
+            ).reshape(-1)]).reshape(-1)
         return res
+
+
     def _needs_init(self, code: str, name: str, torch_check: bool = False):
         """
         Decide wether the attribute needs to be initialized (based on model setup)
