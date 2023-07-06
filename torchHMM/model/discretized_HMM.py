@@ -485,7 +485,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                 self.model(nodes_tensor), cooc_matrix
             ).backward()
             optimizer.step()
-            if i % 1000 == 0:  # TODO: select properly
+            if False: # i % 1000 == 0:  # TODO: select properly
                 (
                     self.means_,
                     self.covars_,
