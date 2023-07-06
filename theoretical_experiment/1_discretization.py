@@ -176,25 +176,28 @@ if __name__ == "__main__":
     X_train, Z_train = true_model.sample(T)
     X_test, Z_test = true_model.sample(T // 10)
 
-    results0 = list()
+    ll_file = open(f"{PROJECT_PATH}/theoretical_experiment/1_discretization_ll_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.txt", "w")
+
+    print("Standard model score: ", true_model.score(X_test))
+    ll_file.write(f"Standard model score: {true_model.score(X_test)}")
+
     results = list()
     Path(f"{PROJECT_PATH}/theoretical_experiment/plots").mkdir(exist_ok=True, parents=True)
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in [int(np.ceil(.5 * 3 * (1 + 5 ** 2))), int(np.ceil(np.sqrt(.5 * 3 * (1 + 5 ** 2) * np.sqrt(T * 3 + 3 ** 2)))), int(np.ceil(np.sqrt(T * 3 + 3 ** 2)))]:
             model = init_model(discretize_meth, true_model, n)
             model._init(X_train)
-            Xd = model.discretize(X_train, True)
+            Xd = model.discretize(X_test, True)
 
             # RQ1: How much do we disturb the distribution?
+            print(f"{discretize_meth}\n\tDiscretized model score: ", true_model.score(Xd))
+            ll_file.write(f"{discretize_meth}\n\tDiscretized model score: {true_model.score(Xd)}")
 
-            Q_cooc = model._cooccurence(Xd)
-            Q_true_model = plot_Q_cooc(Q_cooc, discretize_meth, n)
+
+            # Q_cooc = model._cooccurence(Xd)
+            # Q_true_model = plot_Q_cooc(Q_cooc, discretize_meth, n)
             plot_true_HMM(X_train, model,
                           f"{PROJECT_PATH}/theoretical_experiment/plots/1_nodes_{discretize_meth}_{n}_v2.png", colors)
-
-            kl = kl_divergence(Q_cooc, Q_true_model)
-            dtv = total_variance_dist(Q_cooc, Q_true_model)
-            results0.append({'KL': kl, 'd_tv': dtv, 'disc': discretize_meth, 'n': n})
 
             for _ in tqdm(range(20)):
                 X, Z = true_model.sample(T)
@@ -211,14 +214,14 @@ if __name__ == "__main__":
                 dtv = total_variance_dist(Q_cooc, Q_true_model)
                 results.append({'KL': kl, 'd_tv': dtv, 'disc': discretize_meth, 'n': n})
 
-
+    ll_file.close()
     with open(
             f"{PROJECT_PATH}/theoretical_experiment/1_discretization_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.json",
             'w') as f:
         json.dump(results, f)
 
     results = pd.DataFrame(results)
-    results0 = pd.DataFrame(results)
+    # results0 = pd.DataFrame(results)
     plot_metric(results0, "d_tv", 'Total variation distance')
     plot_metric(results, "d_tv", 'Total variation distance', train=True)
     plot_metric(results0, "KL", 'KL divergence')
