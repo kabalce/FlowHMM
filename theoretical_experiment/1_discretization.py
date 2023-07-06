@@ -190,8 +190,8 @@ if __name__ == "__main__":
             Xd = model.discretize(X_test, True)
 
             # RQ1: How much do we disturb the distribution?
-            print(f"{discretize_meth}\n\tDiscretized model score: ", true_model.score(Xd))
-            ll_file.write(f"{discretize_meth}\n\tDiscretized model score: {true_model.score(Xd)}")
+            print(f"{discretize_meth} {n}\n\tDiscretized model score: ", true_model.score(Xd))
+            ll_file.write(f"{discretize_meth} {n}\n\tDiscretized model score: {true_model.score(Xd)}")
 
 
             # Q_cooc = model._cooccurence(Xd)
