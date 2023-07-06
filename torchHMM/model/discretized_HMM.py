@@ -1,3 +1,7 @@
+"""
+doesn't work?
+"""
+
 from hmmlearn import hmm
 from hmmlearn.base import _log
 import numpy as np
@@ -266,7 +270,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = X[
-            np.random.choice(X.shape[0], size=self.no_nodes, replace=False)
+            np.random.choice((X.shape[0]), size=self.no_nodes, replace=False)
         ].transpose()
 
     def _provide_nodes_latin_q(self, X: npt.NDArray):
@@ -339,12 +343,12 @@ class DiscreteHMM(hmm.GaussianHMM):
         res = np.array([])
         batchsize = 1000
         for i in range((X.shape[0] // batchsize) + 1):
-            res = np.nan_to_num(np.concatenate([res, np.argmin(  # TODO:  fix this!
+            res = np.concatenate([res, np.argmin(  # TODO:  fix this!
                 np.square(X[(i * batchsize):((i + 1) * batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(
                     axis=1),
                 axis=1,
-            ).reshape(-1)]), 0).astype(int).reshape(-1,  1)
-        return res
+            ).reshape(-1)]).astype(int)
+        return res.reshape(-1,  1)
 
     def _needs_init(self, code: str, name: str, torch_check: bool = False):
         """
