@@ -95,7 +95,7 @@ def plot_Q_from_model(model_):
 
 
 def init_model(discretize_meth, true_model, n):
-    model = DiscreteHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="", init_params="",
+    model = DiscreteHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="",
                         optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0), n_iter=100)
 
     model.startprob_ = true_model.startprob_
