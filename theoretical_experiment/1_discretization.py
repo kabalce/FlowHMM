@@ -20,7 +20,7 @@ from pathlib import Path
 from hmmlearn import hmm
 import sys
 PROJECT_PATH = Path(__file__).parent.parent
-sys.path.insert(1, PROJECT_PATH)
+# sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
 from torchHMM.model.discretized_HMM import DiscreteHMM, DISCRETIZATION_TECHNIQUES, HmmOptim
 
@@ -105,7 +105,7 @@ def init_model(discretize_meth, true_model, n):
     return model
 
 
-def plot_true_HMM(X, model, path=None, colors=[]):
+def plot_true_HMM(X, model, discretize_meth, n, path=None, colors=[]):
 
     x1, y1 = X.min(axis=0) * 1.1
     x2, y2 = X.max(axis=0) * 1.1
@@ -116,15 +116,17 @@ def plot_true_HMM(X, model, path=None, colors=[]):
 
     plt.figure(figsize=(5, 5))
     for k in range(model.n_components):
-        plt.contour(XX, YY, np.exp(lls[:,k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=8)
+        plt.contour(XX, YY, np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=8)
 
     plt.scatter(model.nodes[0], model.nodes[1])
     plt.xlabel("$x_1$")
     plt.ylabel("$x_2$")
-    plt.title("Observation Distributions")
+    plt.suptitle("True Distributions  and Nodes")
+    plt.title(f"{discretize_meth} {n}")
     if path is not None:
         plt.savefig(path)
     plt.show()
+    plt.close()
 
 def kl_divergence(p_, q_):
     p = p_.reshape(-1) + 1e-6
@@ -152,6 +154,7 @@ def plot_Q_cooc(Q_cooc, discretize_meth, n):
     ax1.set_title("Q from parameters")
     plt.savefig(f"{PROJECT_PATH}/theoretical_experiment/plots/1_Q_{discretize_meth}_{n}_v2.png")
     plt.show()
+    plt.close()
     return Q_true_model
 
 
@@ -166,6 +169,7 @@ def plot_metric(results, metric, title, train):
     plt.xscale('log')
     plt.savefig(f"{PROJECT_PATH}/theoretical_experiment/plots/1_{metric}_trained={train}.png")
     plt.show()
+    plt.close()
 
 
 
@@ -194,14 +198,14 @@ if __name__ == "__main__":
             ll_file.write(f"{discretize_meth} {n}\n\tDiscretized model score: {true_model.score(Xd)}")
 
 
-            # Q_cooc = model._cooccurence(Xd)
-            # Q_true_model = plot_Q_cooc(Q_cooc, discretize_meth, n)
-            plot_true_HMM(X_train, model,
+            Q_cooc = model._cooccurence(Xd)
+            Q_true_model = plot_Q_cooc(Q_cooc, discretize_meth, n)
+            plot_true_HMM(X_train, model, discretize_meth, n,
                           f"{PROJECT_PATH}/theoretical_experiment/plots/1_nodes_{discretize_meth}_{n}_v2.png", colors)
 
             for _ in tqdm(range(20)):
                 X, Z = true_model.sample(T)
-                model = DiscreteHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="", init_params="",
+                model = DiscreteHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="mct",
                                     optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0), n_iter=100)
                 # model._init(X)
                 model.fit(X)
@@ -215,14 +219,16 @@ if __name__ == "__main__":
                 results.append({'KL': kl, 'd_tv': dtv, 'disc': discretize_meth, 'n': n})
 
     ll_file.close()
+
     with open(
             f"{PROJECT_PATH}/theoretical_experiment/1_discretization_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.json",
             'w') as f:
         json.dump(results, f)
-
+    # with open(f"{PROJECT_PATH}/theoretical_experiment/1_discretization_2023-07-09-21-35.json", 'r') as f:
+    #     results = json.load(f)
     results = pd.DataFrame(results)
     # results0 = pd.DataFrame(results)
-    plot_metric(results0, "d_tv", 'Total variation distance')
+    # plot_metric(results0, "d_tv", 'Total variation distance')
     plot_metric(results, "d_tv", 'Total variation distance', train=True)
-    plot_metric(results0, "KL", 'KL divergence')
+    # plot_metric(results0, "KL", 'KL divergence')
     plot_metric(results, "KL", 'KL divergence', train=True)
