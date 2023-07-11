@@ -1,0 +1,2 @@
+Standard model score: -3519.1704023246048random 39
+	Discretized model score: -242685.17889261284
