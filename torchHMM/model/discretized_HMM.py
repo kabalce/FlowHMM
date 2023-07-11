@@ -27,7 +27,7 @@ from math import prod
 
 
 
-DISCRETIZATION_TECHNIQUES = ["random", "latin_cube_u", "latin_cube_q", "uniform", "grid"]
+DISCRETIZATION_TECHNIQUES = ["random", "latin_cube_u", "latin_cube_q", "uniform", "grid", "sobol",  "halton"]
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ["em", "em_dense", "cooc"]
 
@@ -311,6 +311,28 @@ class DiscreteHMM(hmm.GaussianHMM):
             + X.min(axis=0)[np.newaxis, :]
         ).transpose()
 
+    def _provide_nodes_sobol(self, X: npt.NDArray):  # each point in a row
+        """
+        Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
+        :param X:  Original, continuous (gaussian) data
+        """
+        self.nodes = (
+            qmc.Sobol(X.shape[1]).random(self.no_nodes)
+            * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]
+            + X.min(axis=0)[np.newaxis, :]
+        ).T
+
+    def _provide_nodes_halton(self, X: npt.NDArray):  # each point in a row
+        """
+        Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
+        :param X:  Original, continuous (gaussian) data
+        """
+        self.nodes = (
+            qmc.Halton(X.shape[1]).random(self.no_nodes)
+            * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]
+            + X.min(axis=0)[np.newaxis, :]
+        ).T
+
     def provide_nodes(self, X: npt.NDArray, force: bool):
         """
         Provide nodes for discretization according to models discretization method; nodes are saved in attribute nodes
@@ -329,6 +351,10 @@ class DiscreteHMM(hmm.GaussianHMM):
             self._provide_nodes_latin_q(X)
         elif self.discretization_method == "latin_cube_u":
             self._provide_nodes_latin_u(X)
+        elif self.discretization_method == "sobol":
+            self._provide_nodes_sobol(X)
+        elif self.discretization_method == "halton":
+            self._provide_nodes_halton(X)
         else:
             self._provide_nodes_uniform(X)
 
@@ -478,7 +504,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         self.model.to(device)
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
-        nodes_tensor = torch.Tensor(self.nodes.T).to(device)
+        nodes_tensor = torch.tensor(self.nodes.T).to(device)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
             torch.nn.KLDivLoss(reduction="sum")(
