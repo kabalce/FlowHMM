@@ -6,7 +6,7 @@ from hmmlearn import hmm
 from hmmlearn.base import _log
 import numpy as np
 import numpy.typing as npt
-from scipy.stats.qmc import LatinHypercube
+from scipy.stats import qmc
 import torch
 from typing import Optional
 from math import prod
@@ -283,7 +283,7 @@ class DiscreteHMM(hmm.GaussianHMM):
             lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes):]),
             0,
             np.concatenate(
-                [X, LatinHypercube(X.shape[1]).random(self.no_nodes)],
+                [X, qmc.LatinHypercube(X.shape[1]).random(self.no_nodes)],
                 axis=0,
             ),
         ).T
@@ -293,7 +293,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param X:  Original, continuous (gaussian) data
         """
         self.nodes = (
-            LatinHypercube(X.shape[1]).random(self.no_nodes)
+            qmc.LatinHypercube(X.shape[1]).random(self.no_nodes)
             * (X.max(axis=0) - X.min(axis=0))[np.newaxis, :]
             + X.min(axis=0)[np.newaxis, :]
         ).T
@@ -588,10 +588,20 @@ if __name__ == "__main__":
         "latin_cube_q", 10, n_components=3, learning_alg="cooc", verbose=True
     )
 
+    myHMM5 = DiscreteHMM(
+        "sobol", 10, n_components=3, learning_alg="cooc", verbose=True
+    )
+
+    myHMM6 = DiscreteHMM(
+        "halton", 10, n_components=3, learning_alg="cooc", verbose=True
+    )
+
     myHMM.fit(obs)
     myHMM2.fit(obs)
     myHMM3.fit(obs)
     myHMM4.fit(obs)
+    myHMM5.fit(obs)
+    myHMM6.fit(obs)
 
 # softmax - mozna jeszcze optymalizować mnożnik w wykłądniku - sprawdź różne lambdy
 # twierdzenie że cooc działa przy dostatecznej liczbie danych (dla konkretnych liczb stanów)
