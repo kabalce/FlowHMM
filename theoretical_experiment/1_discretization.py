@@ -97,6 +97,7 @@ def init_model_with_params(discretize_meth, true_model_, X_train_, n):
     model_.covars_ = true_model_.covars_
 
     model_._init(X_train_)
+    model_.provide_nodes(X_train_, False)
     return model_
 
 

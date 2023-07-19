@@ -64,6 +64,7 @@ def init_model(discretize_meth, X_train_, n):
     )
 
     model_._init(X_train_)
+    model_.provide_nodes(X_train_, False)
     return model_
 
 
