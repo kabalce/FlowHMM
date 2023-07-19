@@ -13,7 +13,7 @@ import datetime
 from tqdm import tqdm
 import itertools
 from scipy.stats import multivariate_normal
-
+from sklearn.datasets import make_moons
 from ssm.util import find_permutation
 from ssm.plots import gradient_cmap, white_to_color_cmap
 from pathlib import Path
@@ -22,7 +22,7 @@ import sys
 PROJECT_PATH = Path(__file__).parent.parent
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
-from torchHMM.model.GaussianHMM import DiscreteHMM, DISCRETIZATION_TECHNIQUES, HmmOptim
+from torchHMM.model.FlowHMM import FlowHMM, DISCRETIZATION_TECHNIQUES, FlowHmmOptim
 
 LEARNING_ALGORITHMS = ["em", "cooc"]
 T = 10000
@@ -61,19 +61,6 @@ def init_true_model():
     return true_model, norms
 
 
-# Wybór metryk i sposób prezentacji:
-# 
-# 1. Dla 25, 100, 400 węzłów:
-#     - wykres: rozkłady ze stanów a węzły
-#     - wykres: zgodność macierzy sąsiedztwa
-#     - powtórz 100 razy:
-#         - KL: zgodność macierzy sąsiedztwa
-#         - d_{tv}: zgodność macierzy sąsiedztwa
-#     - wykres: metryki z przedziałami ufności
-
-# In[9]:
-
-
 def plot_Q_from_model(model_):
     S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
     distributions_ = [
@@ -95,7 +82,7 @@ def plot_Q_from_model(model_):
 
 
 def init_model(discretize_meth, true_model, n):
-    model = DiscreteHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="",
+    model = FlowHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="",
                         optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0), n_iter=100)
 
     model.startprob_ = true_model.startprob_
@@ -177,10 +164,12 @@ if __name__ == "__main__":
     cmap, colors = profive_cmap()
     true_model, norms = init_true_model()
 
-    X_train, Z_train = true_model.sample(T)
-    X_test, Z_test = true_model.sample(T // 10)
+    X_train, Z_train = make_moons(T, noise=.05, random_state=0)
+    X_test, Z_test = make_moons(T // 10, noise=.05, random_state=10)
 
     ll_file = open(f"{PROJECT_PATH}/theoretical_experiment/1_discretization_ll_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.txt", "w")
+
+    true_model.fit(X_train)
 
     print("Standard model score: ", true_model.score(X_test))
     ll_file.write(f"Standard model score: {true_model.score(X_test)}")
@@ -205,7 +194,7 @@ if __name__ == "__main__":
 
             for _ in tqdm(range(20)):
                 X, Z = true_model.sample(T)
-                model = DiscreteHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="mct",
+                model = FlowHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="mct",
                                     optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0), n_iter=100)
                 # model._init(X)
                 model.fit(X)
@@ -214,8 +203,9 @@ if __name__ == "__main__":
                 Q_cooc = model._cooccurence(Xd)
                 Q_true_model = plot_Q_from_model(model)
 
-                kl = kl_divergence(Q_cooc, Q_true_model)
-                dtv = total_variance_dist(Q_cooc, Q_true_model)
+                # kl = kl_divergence(Q_cooc, Q_true_model)
+                # dtv = total_variance_dist(Q_cooc, Q_true_model)
+                ll = true_model.score(X_test)
                 results.append({'KL': kl, 'd_tv': dtv, 'disc': discretize_meth, 'n': n})
 
     ll_file.close()
