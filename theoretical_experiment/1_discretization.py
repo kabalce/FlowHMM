@@ -192,7 +192,7 @@ if __name__ == "__main__":
                 results.append(
                     score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization='discretize_meth', n=n)))
 
-        plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}.png")
+            plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}.png")
 
 
     with open(

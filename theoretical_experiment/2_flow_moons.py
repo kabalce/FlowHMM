@@ -1,28 +1,28 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from sklearn.datasets import make_moons
 import numpy as np
 import pandas as pd
 import scipy
-import matplotlib.pyplot as plt
 import seaborn as sns
-from IPython.display import display, Markdown, Latex
 import json
-import urllib
 import datetime
 from tqdm import tqdm
 import itertools
 from scipy.stats import multivariate_normal
-from sklearn.datasets import make_moons
+
 from ssm.util import find_permutation
-from ssm.plots import gradient_cmap, white_to_color_cmap
 from pathlib import Path
 from hmmlearn import hmm
-import sys
+
+from visual_tools import plot_HMM2, plot_Qs, plot_metric, plot_HMM3
+
 PROJECT_PATH = Path(__file__).parent.parent
+# import sys
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
-from torchHMM.model.FlowHMM import FlowHMM, DISCRETIZATION_TECHNIQUES, FlowHmmOptim
+from torchHMM.model.FlowHMM import FlowHMM, DISCRETIZATION_TECHNIQUES
 
 LEARNING_ALGORITHMS = ["em", "cooc"]
 T = 10000
@@ -30,195 +30,136 @@ np.random.seed(2023)
 sns.set_style("white")
 
 
-def profive_cmap():
-    with urllib.request.urlopen('https://xkcd.com/color/rgb.txt') as f:
-        colors = f.readlines()
-    color_names = [str(c)[2:].split('\\t')[0] for c in colors[1:]]
-
-    colors = sns.xkcd_palette(color_names)
-    cmap = gradient_cmap(colors)
-    return cmap, colors
-
-
-def init_true_model():
-    true_model = hmm.GaussianHMM(n_components=3, covariance_type="full")
-
-    true_model.startprob_ = np.array([0.6, 0.3, 0.1])
-    true_model.transmat_ = np.array([[0.7, 0.2, 0.1],
-                                [0.3, 0.5, 0.2],
-                                [0.3, 0.3, 0.4]])
-
-    true_model.means_ = np.array([[0.0, 0.0], [3.0, -3.0], [4.0, 3.0]])
-    true_model.covars_ = np.array([[[1, -.5], [-.5, 1.2]], [[.6, -.5], [-.5, 1.2]], [[1.5, .5], [.5, 2.2]]]) * .8
-
-    true_model.n_features = 2
-
-    norm1 = multivariate_normal(true_model.means_[0], true_model.covars_[0])
-    norm2 = multivariate_normal(true_model.means_[1], true_model.covars_[1])
-    norm3 = multivariate_normal(true_model.means_[2], true_model.covars_[2])
-    norms = [norm1, norm2, norm3]
-
-    return true_model, norms
-
-
-def plot_Q_from_model(model_):
+def Q_from_params(model_):
+    """
+    Calculate Q from model parameters
+    """
     S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
     distributions_ = [
-            scipy.stats.multivariate_normal(model_.means_[i], model_.covars_[i])
-            for i in range(model_.n_components)
-        ]
+        scipy.stats.multivariate_normal(model_.means_[i], model_.covars_[i])
+        for i in range(model_.n_components)
+    ]
 
     B_ = np.concatenate(
-            [
-                dist.pdf(model_.nodes.T).reshape(
-                    1, -1
-                )
-                for dist in distributions_
-            ],
-            axis=0,
-        )
+        [dist.pdf(model_.nodes.T).reshape(1, -1) for dist in distributions_],
+        axis=0,
+    )
     B_ = B_ / B_.sum(1)[:, np.newaxis]
     return B_.T @ S_ @ B_
 
 
-def init_model(discretize_meth, true_model, n):
-    model = FlowHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="",
-                        optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0), n_iter=100)
+def init_model(discretize_meth, X_train_, n):
+    """
+    Init DiscreteHMM with parameters from true model
+    """
+    model_ = FlowHMM(
+        discretize_meth,
+        n,
+        learning_alg="cooc",
+        verbose=True,
+        params="mct",
+        init_params="",
+        optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0),
+        n_iter=100,
+    )
 
-    model.startprob_ = true_model.startprob_
-    model.transmat_ = true_model.transmat_
-    model.means_ = true_model.means_
-    model.covars_ = true_model.covars_
-    return model
+    model_._init(X_train_)
+    return model_
 
 
-def plot_true_HMM(X, model, discretize_meth, n, path=None, colors=[]):
+def list_grid_size(n_=3):
+    return [
+        10,
+        int(np.ceil(0.5 * n_ * (1 + (2 * n_ - 1)**2))),
+        50,
+        int(np.ceil(np.sqrt(0.5 * n_ * (1 + (2 * n_ - 1)**2) * np.sqrt(T * n_ + 3**2)))),
+        100,
+        int(np.ceil(np.sqrt(T * n_ + n_**2))),
+        250,
+    ]
 
-    x1, y1 = X.min(axis=0) * 1.1
-    x2, y2 = X.max(axis=0) * 1.1
-
-    XX, YY = np.meshgrid(np.linspace(x1, x2, 100), np.linspace(y1, y2, 100))
-    data = np.column_stack((XX.ravel(), YY.ravel()))
-    lls = np.concatenate([norm.pdf(data).reshape(-1, 1) for norm in norms], axis=1)
-
-    plt.figure(figsize=(5, 5))
-    for k in range(model.n_components):
-        plt.contour(XX, YY, np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=8)
-
-    plt.scatter(model.nodes[0], model.nodes[1])
-    plt.xlabel("$x_1$")
-    plt.ylabel("$x_2$")
-    plt.suptitle("True Distributions  and Nodes")
-    plt.title(f"{discretize_meth} {n}")
-    if path is not None:
-        plt.savefig(path)
-    plt.show()
-    plt.close()
 
 def kl_divergence(p_, q_):
-    p = p_.reshape(-1) + 1e-6
+    p = p_.reshape(-1) + 1e-10
     p /= p.sum()
-    q = q_.reshape(-1) + 1e-6
+    q = q_.reshape(-1) + 1e-10
     q /= q.sum()
     return np.sum(p * np.log2(p / q))
 
 
-# Selecting number of nodes:
-# 
-# - NNMF-HMM: $\sqrt{TN + N^2}$
-# - minimal: $0.5 (N(1 + \sqrt{5}))$
-# - try also geometric mean of above
+def accuracy(Z_hat, Z_):
+    perm = find_permutation(np.concatenate([Z_hat, np.arange(max(Z_))]),
+                            np.concatenate([Z_, np.arange(max(Z_))]))
+    return (perm[Z_hat] == Z_).mean()
 
-# In[10]:
+def score_model(model_, X_, Z_, Q_gt, info):
+    ll = model.score(X_)
+    acc = accuracy(model_.predict(X_), Z_)
+    if Q_gt is not None:
+        Q = Q_from_params(model_)
+        kl = kl_divergence(Q, Q_gt)
+        d_tv = total_variance_dist(Q, Q_gt)
+    else:
+        kl = None
+        d_tv = None
+    return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
 
-def plot_Q_cooc(Q_cooc, discretize_meth, n):
-    fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(10, 10))
-    vmin, vmax = Q_cooc.min(), Q_cooc.max()
-    ax0.imshow(Q_cooc, vmin=vmin, vmax=vmax)
-    ax0.set_title("Q from sample")
-    Q_true_model = plot_Q_from_model(model)
-    ax1.imshow(Q_true_model, vmin=vmin, vmax=vmax)
-    ax1.set_title("Q from parameters")
-    plt.savefig(f"{PROJECT_PATH}/theoretical_experiment/plots/1_Q_{discretize_meth}_{n}_v2.png")
-    plt.show()
-    plt.close()
-    return Q_true_model
-
-
-
-# In[24]:
-
-def plot_metric(results, metric, title, train):
-    sns.lineplot(results, x='n', y=metric, hue='disc', marker='o')
-    plt.title(title)
-    plt.xlabel('number of unique discrete values')
-    plt.legend(title="discretization\ntechnique")
-    plt.xscale('log')
-    plt.savefig(f"{PROJECT_PATH}/theoretical_experiment/plots/1_{metric}_trained={train}.png")
-    plt.show()
-    plt.close()
-
+results_path = f"{PROJECT_PATH}/theoretical_experiment/2_results"
+Path(results_path).mkdir(exist_ok=True, parents=True)
+grid_sizes = list_grid_size()
 
 
 if __name__ == "__main__":
-    cmap, colors = profive_cmap()
-    true_model, norms = init_true_model()
-
-    X_train, Z_train = make_moons(T, noise=.05, random_state=0)
-    X_test, Z_test = make_moons(T // 10, noise=.05, random_state=10)
-
-    ll_file = open(f"{PROJECT_PATH}/theoretical_experiment/1_discretization_ll_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.txt", "w")
-
-    true_model.fit(X_train)
-
-    print("Standard model score: ", true_model.score(X_test))
-    ll_file.write(f"Standard model score: {true_model.score(X_test)}")
+    X_train, Z_train = make_moons(T, random_state=2023, noise=0.05)
+    X_test, Z_test = make_moons(T // 10, random_state=2022, noise=0.05)
 
     results = list()
-    Path(f"{PROJECT_PATH}/theoretical_experiment/plots").mkdir(exist_ok=True, parents=True)
+
+    for _ in tqdm(range(20)):  # the initialization differ in runs
+        model = hmm.GaussianHMM(
+            n_components=2,
+            verbose=True,
+            params="smct",
+            init_params="smct",
+            n_iter=100,
+        )
+        model.fit(X_train)
+
+        results.append(
+            score_model(model, X_test, Z_test, None, dict(discretization='none')))
+
+    plot_HMM2(X_test, Z_test, model, path=f"{results_path}/2_gaussians_on_moons.png")
+
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
-        for n in [int(np.ceil(.5 * 3 * (1 + 5 ** 2))), int(np.ceil(np.sqrt(.5 * 3 * (1 + 5 ** 2) * np.sqrt(T * 3 + 3 ** 2)))), int(np.ceil(np.sqrt(T * 3 + 3 ** 2)))]:
-            model = init_model(discretize_meth, true_model, n)
-            model._init(X_train)
-            Xd = model.discretize(X_test, True)
+        for n in grid_sizes:
+            model = init_model(discretize_meth, X_train, n)
 
-            # RQ1: How much do we disturb the distribution?
-            print(f"{discretize_meth} {n}\n\tDiscretized model score: ", true_model.score(Xd))
-            ll_file.write(f"{discretize_meth} {n}\n\tDiscretized model score: {true_model.score(Xd)}")
+            for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
+                model = FlowHMM(
+                    discretization_method=discretize_meth,
+                    no_nodes=n,
+                    n_components=2,
+                    learning_alg="cooc",
+                    verbose=True,
+                    params="mct",
+                    init_params="mct",
+                    optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0),
+                    n_iter=100,
+                )
+                model.fit(X_train)
 
+                results.append(
+                    score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization='discretize_meth', n=n)))
+            plot_HMM3(X_test, Z_test, model, path= f"{results_path}/1_dist_on_moons_{discretize_meth}_{n}.png")
+            plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}.png")
 
-            Q_cooc = model._cooccurence(Xd)
-            Q_true_model = plot_Q_cooc(Q_cooc, discretize_meth, n)
-            plot_true_HMM(X_train, model, discretize_meth, n,
-                          f"{PROJECT_PATH}/theoretical_experiment/plots/1_nodes_{discretize_meth}_{n}_v2.png", colors)
-
-            for _ in tqdm(range(20)):
-                X, Z = true_model.sample(T)
-                model = FlowHMM(discretize_meth, n, n_components=3, learning_alg='cooc', verbose=True, params="mct", init_params="mct",
-                                    optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0), n_iter=100)
-                # model._init(X)
-                model.fit(X)
-                Xd = model.discretize(X, True)
-
-                Q_cooc = model._cooccurence(Xd)
-                Q_true_model = plot_Q_from_model(model)
-
-                # kl = kl_divergence(Q_cooc, Q_true_model)
-                # dtv = total_variance_dist(Q_cooc, Q_true_model)
-                ll = true_model.score(X_test)
-                results.append({'KL': kl, 'd_tv': dtv, 'disc': discretize_meth, 'n': n})
-
-    ll_file.close()
 
     with open(
-            f"{PROJECT_PATH}/theoretical_experiment/1_discretization_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.json",
-            'w') as f:
+        f"{results_path}/2_flow_moons.json",
+        "w",
+    ) as f:
         json.dump(results, f)
-    # with open(f"{PROJECT_PATH}/theoretical_experiment/1_discretization_2023-07-09-21-35.json", 'r') as f:
-    #     results = json.load(f)
+
     results = pd.DataFrame(results)
-    # results0 = pd.DataFrame(results)
-    # plot_metric(results0, "d_tv", 'Total variation distance')
-    plot_metric(results, "d_tv", 'Total variation distance', train=True)
-    # plot_metric(results0, "KL", 'KL divergence')
-    plot_metric(results, "KL", 'KL divergence', train=True)
+    for metric, title in zip(['d_tv', 'kl', 'acc', 'll'], ["Total variation distance", "KL divergence", 'State prediction accuracy', 'Loglikelihood']):
+        plot_metric(results, metric, title, f"{results_path}/2_{metric}.png")
