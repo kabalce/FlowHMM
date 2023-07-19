@@ -75,13 +75,13 @@ def Q_from_params(model_):
     return B_.T @ S_ @ B_
 
 
-def init_model_with_params(discretize_meth, true_model_, X_train_):
+def init_model_with_params(discretize_meth, true_model_, X_train_, n):
     """
     Init DiscreteHMM with parameters from true model
     """
     model_ = DiscreteHMM(
         discretize_meth,
-        true_model_.n_components,
+        n,
         n_components=3,
         learning_alg="cooc",
         verbose=True,
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in grid_sizes:
-            model = init_model_with_params(discretize_meth, true_model, X_train)
+            model = init_model_with_params(discretize_meth, true_model, X_train, n)
 
             plot_HMM(  # Example plot
                 X_train,
