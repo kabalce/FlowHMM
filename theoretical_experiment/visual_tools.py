@@ -20,7 +20,7 @@ def profive_cmap():
 cmap, colors = profive_cmap()
 
 
-def plot_HMM(X, model, discretize_meth, n, colors, path=None):
+def plot_HMM(X, model, discretize_meth, n, path=None):
     """
     Plot emission distribution and nodes
     """
