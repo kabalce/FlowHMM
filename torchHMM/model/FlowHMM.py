@@ -2,7 +2,7 @@ from hmmlearn import hmm
 from hmmlearn.base import _log
 import numpy as np
 import numpy.typing as npt
-from scipy.stats.qmc import LatinHypercube
+from scipy.stats import qmc
 import torch
 from typing import Optional
 from math import prod
