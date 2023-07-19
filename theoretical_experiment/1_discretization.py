@@ -15,9 +15,9 @@ from ssm.util import find_permutation
 from pathlib import Path
 from hmmlearn import hmm
 
-from visual_tools import plot_HMM, plot_Qs, plot_metric
+from theoretical_experiment.visual_tools import plot_HMM, plot_Qs, plot_metric
 
-PROJECT_PATH = Path(__file__).parent.parent
+PROJECT_PATH = Path(__file__).parent # .parent
 # import sys
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
