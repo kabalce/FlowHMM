@@ -436,8 +436,8 @@ class FlowHMM(hmm.CategoricalHMM):
         :param X: Original, continuous (gaussian) data
         :param lengths: Lengths of individual sequences in X
         """
-          # init k-means with a batch of data (of some maximum size)?
-
+        # init k-means with a batch of data (of some maximum size)?
+        super()._init(self.discretize(X, False).reshape(-1, 1))
         for e in ["z", "u"]:
             if self._needs_init(e, f"{e}_"):
                 setattr(
