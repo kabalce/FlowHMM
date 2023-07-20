@@ -544,7 +544,7 @@ class FlowHMM(hmm.CategoricalHMM):
                         dim=0,
                     ),
                     dim=1, p=1
-                ).detach().numpy()
+                ).cpu().detach().numpy()
                 if Xc is not None:
                     score = self.score(Xd.reshape(-1, 1), lengthsd)
                     self.monitor_.report(score)
