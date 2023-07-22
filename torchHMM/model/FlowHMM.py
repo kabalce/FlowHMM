@@ -600,6 +600,10 @@ class FlowHMM(hmm.CategoricalHMM):
         Xd = self.discretize(X, force=False).reshape(-1, 1)
         return super().score(Xd, lengths)
 
+    def predict(self, X, lengths=None):
+        Xd = self.discretize(X, force=False).reshape(-1, 1)
+        return super().predict(Xd, lengths)
+
 
 
 if __name__ == "__main__":
