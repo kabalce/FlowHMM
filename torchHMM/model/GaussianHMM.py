@@ -10,7 +10,7 @@ from scipy.stats import qmc
 import torch
 from typing import Optional
 from math import prod
-
+import itertools
 
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
@@ -258,9 +258,9 @@ class DiscreteHMM(hmm.GaussianHMM):
         dims = [1]
         for i in range(X.shape[1]):
             dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
+
         grids = np.vstack([np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])])
-        meshgrid = np.meshgrid(grids[0], grids[1])
-        self.nodes = np.concatenate([a.reshape(-1, 1) for a in meshgrid], axis=1).T
+        self.nodes = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])]).T
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
@@ -577,16 +577,16 @@ if __name__ == "__main__":
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
     obs, hid = hmm.sample(100)
 
-    myHMM = DiscreteHMM("random", 10, n_components=3, learning_alg="cooc", verbose=True)
-    myHMM2 = DiscreteHMM(
-        "uniform", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
-    myHMM3 = DiscreteHMM(
-        "latin_cube_u", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
-    myHMM4 = DiscreteHMM(
-        "latin_cube_q", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
+    # myHMM = DiscreteHMM("random", 10, n_components=3, learning_alg="cooc", verbose=True)
+    # myHMM2 = DiscreteHMM(
+    #     "uniform", 10, n_components=3, learning_alg="cooc", verbose=True
+    # )
+    # myHMM3 = DiscreteHMM(
+    #     "latin_cube_u", 10, n_components=3, learning_alg="cooc", verbose=True
+    # )
+    # myHMM4 = DiscreteHMM(
+    #     "latin_cube_q", 10, n_components=3, learning_alg="cooc", verbose=True
+    # )
 
     myHMM5 = DiscreteHMM(
         "sobol", 10, n_components=3, learning_alg="cooc", verbose=True
@@ -596,10 +596,10 @@ if __name__ == "__main__":
         "halton", 10, n_components=3, learning_alg="cooc", verbose=True
     )
 
-    myHMM.fit(obs)
-    myHMM2.fit(obs)
-    myHMM3.fit(obs)
-    myHMM4.fit(obs)
+    # myHMM.fit(obs)
+    # myHMM2.fit(obs)
+    # myHMM3.fit(obs)
+    # myHMM4.fit(obs)
     myHMM5.fit(obs)
     myHMM6.fit(obs)
 
