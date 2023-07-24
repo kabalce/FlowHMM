@@ -34,6 +34,9 @@ def Q_from_params(model_):
     """
     Calculate Q from model parameters
     """
+    if hasattr(model_, 'emissionprob_'):
+        return Q_from_params_d(model_)
+
     S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
     distributions_ = [
         scipy.stats.multivariate_normal(model_.means_[i], model_.covars_[i])
@@ -45,6 +48,15 @@ def Q_from_params(model_):
         axis=0,
     )
     B_ = B_ / B_.sum(1)[:, np.newaxis]
+    return B_.T @ S_ @ B_
+
+
+def Q_from_params_d(model_):
+    """
+    Calculate Q from model parameters
+    """
+    S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
+    B_ = model_.emissionprob_
     return B_.T @ S_ @ B_
 
 
