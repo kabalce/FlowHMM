@@ -69,8 +69,8 @@ def init_model(discretize_meth, X_train_, n):
         n,
         learning_alg="cooc",
         verbose=True,
-        params="mct",
-        init_params="",
+        params="ste",
+        init_params="ste",
         optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0),
         n_iter=100,
     )
