@@ -154,8 +154,8 @@ if __name__ == "__main__":
                     n_components=2,
                     learning_alg="cooc",
                     verbose=True,
-                    params="mct",
-                    init_params="mct",
+                    params="ste",
+                    init_params="ste",
                     optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0),
                     n_iter=100,
                 )
