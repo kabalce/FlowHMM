@@ -23,7 +23,7 @@ from torchHMM.flow_tools.cnf_utils import standard_normal_logprob, build_model_t
 
 
 
-DISCRETIZATION_TECHNIQUES = ["random", "latin_cube_u", "latin_cube_q", "uniform", "grid", "sobol",  "halton"]
+DISCRETIZATION_TECHNIQUES = ["grid", "random", "latin_cube_u", "latin_cube_q", "uniform", "sobol",  "halton"]
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ["em", "em_dense", "cooc"]
 
@@ -269,9 +269,8 @@ class FlowHMM(hmm.CategoricalHMM):
         dims = [1]
         for i in range(X.shape[1]):
             dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
-        grids = np.vstack([np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])])
-        meshgrid = np.meshgrid(grids[0], grids[1])
-        self.nodes = np.concatenate([a.reshape(-1, 1) for a in meshgrid], axis=1).T
+        grids = [np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])]
+        self.nodes = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])]).T
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
