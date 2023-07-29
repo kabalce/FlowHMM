@@ -7,6 +7,7 @@ import torch
 from typing import Optional
 from math import prod
 from torchHMM.flow_tools.cnf_utils import standard_normal_logprob, build_model_tabular
+import itertools
 
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
