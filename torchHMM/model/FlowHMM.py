@@ -272,6 +272,7 @@ class FlowHMM(hmm.CategoricalHMM):
             dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
         grids = [np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])]
         self.nodes = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])]).T
+        
 
 
     def _provide_nodes_random(self, X: npt.NDArray):
@@ -369,6 +370,7 @@ class FlowHMM(hmm.CategoricalHMM):
             self._provide_nodes_halton(X)
         else:
             self._provide_nodes_uniform(X)
+        self.n_features = self.nodes.shape[1]
 
     def discretize(self, X: npt.NDArray, force: bool):
         """
