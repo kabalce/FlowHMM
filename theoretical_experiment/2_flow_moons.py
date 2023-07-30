@@ -106,8 +106,8 @@ def accuracy(Z_hat, Z_):
     return (perm[Z_hat] == Z_).mean()
 
 def score_model(model_, X_, Z_, Q_gt, info):
-    ll = model.score(X_)
-    acc = accuracy(model_.predict(X_), Z_)
+    ll = model.score(X_, np.array(X.shape[0]))
+    acc = accuracy(model_.predict(X_, np.array(X.shape[0])), Z_)
     if Q_gt is not None:
         Q = Q_from_params(model_)
         kl = kl_divergence(Q, Q_gt)
