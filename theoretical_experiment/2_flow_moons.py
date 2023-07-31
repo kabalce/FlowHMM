@@ -69,8 +69,8 @@ def init_model(discretize_meth, X_train_, n):
         n,
         learning_alg="cooc",
         verbose=True,
-        params="mct",
-        init_params="",
+        params="ste",
+        init_params="ste",
         optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0),
         n_iter=100,
     )
@@ -106,8 +106,8 @@ def accuracy(Z_hat, Z_):
     return (perm[Z_hat] == Z_).mean()
 
 def score_model(model_, X_, Z_, Q_gt, info):
-    ll = model.score(X_)
-    acc = accuracy(model_.predict(X_), Z_)
+    ll = model.score(X_, np.array(X_.shape[0]))
+    acc = accuracy(model_.predict(X_, np.array(X_.shape[0])), Z_)
     if Q_gt is not None:
         Q = Q_from_params(model_)
         kl = kl_divergence(Q, Q_gt)
@@ -154,8 +154,8 @@ if __name__ == "__main__":
                     n_components=2,
                     learning_alg="cooc",
                     verbose=True,
-                    params="mct",
-                    init_params="mct",
+                    params="ste",
+                    init_params="ste",
                     optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0),
                     n_iter=100,
                 )
