@@ -1,0 +1,16 @@
+Standard model score: -3519.1704023246048random 39
+	Discretized model score: -242685.17889261284random 83
+	Discretized model score: -1025834.3444267538random 174
+	Discretized model score: -5317982.842624663latin_cube_u 39
+	Discretized model score: -308357.87297271815latin_cube_u 83
+	Discretized model score: -732630.3548603747latin_cube_u 174
+	Discretized model score: -3169680.3019386292latin_cube_q 39
+	Discretized model score: -159496.5606677698latin_cube_q 83
+	Discretized model score: -964483.1628465023latin_cube_q 174
+	Discretized model score: -6167512.53674341uniform 39
+	Discretized model score: -199341.03722167716uniform 83
+	Discretized model score: -812735.51412322uniform 174
+	Discretized model score: -3808002.4637295445grid 39
+	Discretized model score: -65142.399369294246grid 83
+	Discretized model score: -449970.9239595857grid 174
+	Discretized model score: -2173583.198549745
