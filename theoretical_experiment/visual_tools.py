@@ -69,8 +69,8 @@ def plot_Qs(Q_cooc, Q_true_model, path):
     plt.close()
 
 
-def plot_metric(results, metric, title, path):
-    plot = sns.lineplot(results.loc[~results['n'].isna(), :], x='n', y=metric, hue='disc', marker='o')
+def plot_metric(results, metric, title, path, ylog=False):
+    plot = sns.lineplot(results.loc[~results['n'].isna(), :], x='n', y=metric, hue=['discretization', 'max_epoch', 'lr'], marker='o')
     h = results.loc[results['n'].isna(), metric].mean()
     if h is not None:
         plot.axhline(h)
@@ -78,6 +78,8 @@ def plot_metric(results, metric, title, path):
     plt.xlabel('number of unique discrete values')
     plt.legend(title="discretization\ntechnique")
     plt.xscale('log')
+    if ylog:
+        plt.yscale('log')
     plt.legend(loc='center left', bbox_to_anchor=(1, 1))
     plt.savefig(path)
     plt.show()

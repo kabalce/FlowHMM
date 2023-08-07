@@ -101,15 +101,11 @@ def init_model_with_params(discretize_meth, true_model_, X_train_, n):
     return model_
 
 
-def list_grid_size(n_=3):
+def list_grid_size():
     return [
-        10,
-        int(np.ceil(0.5 * n_ * (1 + (2 * n_ - 1)**2))),
-        50,
-        int(np.ceil(np.sqrt(0.5 * n_ * (1 + (2 * n_ - 1)**2) * np.sqrt(T * n_ + 3**2)))),
-        100,
-        int(np.ceil(np.sqrt(T * n_ + n_**2))),
-        250,
+        2**2,
+        2**4,
+        2**6
     ]
 
 
@@ -138,7 +134,7 @@ def score_model(model_, X_, Z_, Q_gt, info):
         d_tv = None
     return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
 
-results_path = f"{PROJECT_PATH}/theoretical_experiment/1_results"
+results_path = f"{PROJECT_PATH}/theoretical_experiment/1_results_final"
 Path(results_path).mkdir(exist_ok=True, parents=True)
 grid_sizes = list_grid_size()
 
@@ -162,7 +158,7 @@ if __name__ == "__main__":
         model.fit(X_train)
 
         results.append(
-            score_model(model, X_test, Z_test, None, dict(discretization='none')))
+            score_model(model, X_test, Z_test, None))
 
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in grid_sizes:
@@ -173,27 +169,29 @@ if __name__ == "__main__":
                 model,
                 discretize_meth,
                 n,
-                f"{results_path}/1_nodes_{discretize_meth}_{n}_v2.png",
+                f"{results_path}/1_nodes_{discretize_meth}_{n}.png",
             )
 
-            for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
-                model = DiscreteHMM(
-                    discretization_method=discretize_meth,
-                    no_nodes=n,
-                    n_components=3,
-                    learning_alg="cooc",
-                    verbose=True,
-                    params="mct",
-                    init_params="mct",
-                    optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0),
-                    n_iter=100,
-                )
-                model.fit(X_train)
+            for max_epoch, lr in itertools.product([1000, 10000, 20000],  [0.01, 0.03, 0.1]):
 
-                results.append(
-                    score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization='discretize_meth', n=n)))
+                for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
+                    model = DiscreteHMM(
+                        discretization_method=discretize_meth,
+                        no_nodes=n,
+                        n_components=3,
+                        learning_alg="cooc",
+                        verbose=True,
+                        params="mct",
+                        init_params="mct",
+                        optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0),
+                        n_iter=100,
+                    )
+                    model.fit(X_train)
 
-            plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}.png")
+                    results.append(
+                        score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
+
+                plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}_{max_epoch}_{lr}.png")
 
 
     with open(
