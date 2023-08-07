@@ -158,7 +158,7 @@ if __name__ == "__main__":
         model.fit(X_train)
 
         results.append(
-            score_model(model, X_test, Z_test, None))
+            score_model(model, X_test, Z_test, None, dict()))
 
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in grid_sizes:
