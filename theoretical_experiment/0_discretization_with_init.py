@@ -191,7 +191,7 @@ if __name__ == "__main__":
                         learning_alg="cooc",
                         verbose=True,
                         params="mct",
-                        init_params="mct",
+                        init_params="",
                         optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0, run=run),
                         n_iter=100,
                     )
