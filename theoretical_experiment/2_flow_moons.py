@@ -81,16 +81,13 @@ def init_model(discretize_meth, X_train_, n):
     return model_
 
 
-def list_grid_size(n_=3):
+def list_grid_size():
     return [
-        10,
-        int(np.ceil(0.5 * n_ * (1 + (2 * n_ - 1)**2))),
-        50,
-        int(np.ceil(np.sqrt(0.5 * n_ * (1 + (2 * n_ - 1)**2) * np.sqrt(T * n_ + 3**2)))),
-        100,
-        int(np.ceil(np.sqrt(T * n_ + n_**2))),
-        250,
+        2**2,
+        2**4,
+        2**6
     ]
+
 
 
 def kl_divergence(p_, q_):
