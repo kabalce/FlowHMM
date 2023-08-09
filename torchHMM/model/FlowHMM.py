@@ -519,9 +519,10 @@ class FlowHMM(hmm.CategoricalHMM):
 
         self.model.to(device)
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
+        run = self.optim_params.pop('run')
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         nodes_tensor = torch.Tensor(self.nodes.T).to(device)
-        run = self.optim_params.pop('run')
+        
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
