@@ -154,9 +154,14 @@ if __name__ == "__main__":
             n_components=3,
             verbose=True,
             params="smct",
-            init_params="smct",
+            init_params="",
             n_iter=100,
         )
+        model.startprob_ = true_model.startprob_
+        model.transmat_ = true_model.transmat_
+        model.means_ = true_model.means_
+        model.covars_ = true_model.covars_
+
         model.fit(X_train)
 
         results.append(
