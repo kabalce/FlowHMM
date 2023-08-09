@@ -180,7 +180,7 @@ if __name__ == "__main__":
                 f"{results_path}/0_nodes_{discretize_meth}_{n}.png",
             )
 
-            for max_epoch, lr in itertools.product([1000],  [0.0001, 0.001, 0.01, 0.03, 0.1]):  # default for Adam is 0.001
+            for max_epoch, lr in itertools.product([1000],  [0.001, 0.01, 0.03, 0.1]):  # default for Adam is 0.001
 
                 for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = wandb.init(
