@@ -70,7 +70,7 @@ def plot_Qs(Q_cooc, Q_true_model, path):
 
 
 def plot_metric(results, metric, title, path, ylog=False):
-    plot = sns.lineplot(results.loc[~results['n'].isna(), :], x='n', y=metric, hue=['discretization', 'max_epoch', 'lr'], marker='o')
+    plot = sns.lineplot(results.loc[~results['n'].isna(), :], x='n', y=metric, hue='discretization', marker='o')
     h = results.loc[results['n'].isna(), metric].mean()
     if h is not None:
         plot.axhline(h)
