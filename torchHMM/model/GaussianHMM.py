@@ -11,6 +11,8 @@ import torch
 from typing import Optional
 from math import prod
 import itertools
+# Import the W&B Python Library
+import wandb
 
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
@@ -247,6 +249,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: make it optional
         self.l = l
         self.z_, self.u_ = None, None
+
 
     def _provide_nodes_grid(self, X: npt.NDArray):
         """
@@ -502,16 +505,28 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: parametrize
 
         self.model.to(device)
+        run = self.optim_params.pop('run')
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         nodes_tensor = torch.tensor(self.nodes.T).to(device)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
-            torch.nn.KLDivLoss(reduction="sum")(
-                self.model(nodes_tensor), cooc_matrix
-            ).backward()
+            loss = torch.nn.KLDivLoss(reduction="sum")(
+                torch.log(self.model(nodes_tensor)), cooc_matrix  # if it will work, please apply also to FlowHMM!!!
+            )
+            loss.backward()
             optimizer.step()
-            if False: # i % 1000 == 0:  # TODO: select properly
+            if i % 100 == 0:
+                (
+                    self.means_,
+                    self.covars_,
+                    self.transmat_,
+                    self.startprob_,
+                ) = self.model.get_model_params()
+                if run is not None:
+                    run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
+            elif i % 1000 == 999:  # TODO: select properly
                 (
                     self.means_,
                     self.covars_,
@@ -519,8 +534,8 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.startprob_,
                 ) = self.model.get_model_params()
 
-                self.optim_params['lr'] = self.optim_params['lr'] * .9
-                optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+                scheduler.step()
+
 
                 if Xc is not None:
                     score = self.score(Xc, lengthsc)
@@ -536,6 +551,7 @@ class DiscreteHMM(hmm.GaussianHMM):
             self.transmat_,
             self.startprob_,
         ) = self.model.get_model_params()
+        # wandb.finish()
 
     def fit(
         self,

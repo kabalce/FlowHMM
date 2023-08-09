@@ -7,6 +7,7 @@ import scipy
 import seaborn as sns
 import json
 import datetime
+import wandb
 from tqdm import tqdm
 import itertools
 from scipy.stats import multivariate_normal
@@ -175,6 +176,13 @@ if __name__ == "__main__":
             for max_epoch, lr in itertools.product([1000, 10000, 20000],  [0.01, 0.03, 0.1]):
 
                 for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
+                    run = wandb.init(
+                        project="GaussianHMM",
+                        name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
+                        notes="GaussianHMM with co-occurrence-based learning schema logger"
+                    )
+                    wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
+
                     model = DiscreteHMM(
                         discretization_method=discretize_meth,
                         no_nodes=n,
@@ -183,10 +191,11 @@ if __name__ == "__main__":
                         verbose=True,
                         params="mct",
                         init_params="mct",
-                        optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0),
+                        optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0, run=run),
                         n_iter=100,
                     )
                     model.fit(X_train)
+                    wandb.finish()
 
                     results.append(
                         score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
