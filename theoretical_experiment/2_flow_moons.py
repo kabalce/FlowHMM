@@ -30,6 +30,7 @@ T = 10000
 np.random.seed(2023)
 sns.set_style("white")
 
+wandb_project_name = f"2_FlowHMM_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}"
 
 def Q_from_params(model_):
     """
@@ -149,7 +150,7 @@ if __name__ == "__main__":
 
                 for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = wandb.init(
-                        project="FlowHMM",
+                        project=wandb_project_name,
                         name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
                         notes="FlowHMM with co-occurrence-based learning schema logger"
                     )
