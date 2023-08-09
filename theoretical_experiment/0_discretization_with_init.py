@@ -186,7 +186,8 @@ if __name__ == "__main__":
                     run = wandb.init(
                         project=wandb_project_name,
                         name=f"ex_0_{discretize_meth}_{n}_{max_epoch}_{lr}",
-                        notes="GaussianHMM with co-occurrence-based learning schema logger"
+                        notes="GaussianHMM with co-occurrence-based learning schema logger",
+                        dir=f'{PROJECT_PATH}/.cache/wandb'
                     )
                     wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
 
