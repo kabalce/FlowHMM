@@ -8,6 +8,7 @@ from typing import Optional
 from math import prod
 from torchHMM.flow_tools.cnf_utils import standard_normal_logprob, build_model_tabular
 import itertools
+import wandb
 
 # czy jest hmm w torchu już zaimplementowany:
 # http://torch.ch/torch3/manual/HMM.html
@@ -520,21 +521,45 @@ class FlowHMM(hmm.CategoricalHMM):
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         nodes_tensor = torch.Tensor(self.nodes.T).to(device)
+        run = self.optim_params.pop('run')
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
-            torch.nn.KLDivLoss(reduction="sum")(
-                self.model(nodes_tensor), cooc_matrix
-            ).backward()
+            loss = torch.nn.KLDivLoss(reduction="sum")(
+                torch.log(self.model(nodes_tensor)), cooc_matrix
+            )
+            loss.backward()
             optimizer.step()
-            if i % 1000 == 0:  # TODO: select properly
+            if i % 100 == 0:
+                (
+                    self.NFs,
+                    self.transmat_,
+                    self.startprob_,
+                ) = self.model.get_model_params()
+                self.emissionprob_ = torch.nn.functional.normalize(
+                    torch.cat(
+                        [
+                            torch.exp(self.model.emission_score(dist, nodes_tensor)).reshape(
+                                1, -1
+                            )
+                            for dist in self.NFs
+                        ],
+                        dim=0,
+                    ),
+                    dim=1, p=1
+                ).cpu().detach().numpy()
+
+                if run is not None:
+                    run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
+
+            elif i % 1000 == 999:  # TODO: select properly
                 (
                     self.NFs,
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
 
-                self.optim_params['lr'] = self.optim_params['lr'] * .9
-                optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
+                scheduler.step()
                 self.emissionprob_ = torch.nn.functional.normalize(
                     torch.cat(
                         [

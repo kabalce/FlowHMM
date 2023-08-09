@@ -8,6 +8,7 @@ import scipy
 import seaborn as sns
 import json
 import datetime
+import wandb
 from tqdm import tqdm
 import itertools
 from scipy.stats import multivariate_normal
@@ -117,7 +118,7 @@ def score_model(model_, X_, Z_, Q_gt, info):
         d_tv = None
     return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
 
-results_path = f"{PROJECT_PATH}/theoretical_experiment/2_results"
+results_path = f"{PROJECT_PATH}/theoretical_experiment/2_results_final"
 Path(results_path).mkdir(exist_ok=True, parents=True)
 grid_sizes = list_grid_size()
 
@@ -147,24 +148,33 @@ if __name__ == "__main__":
         for n in grid_sizes:
             model = init_model(discretize_meth, X_train, n)
 
-            for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
-                model = FlowHMM(
-                    discretization_method=discretize_meth,
-                    no_nodes=n,
-                    n_components=2,
-                    learning_alg="cooc",
-                    verbose=True,
-                    params="ste",
-                    init_params="ste",
-                    optim_params=dict(max_epoch=50000, lr=0.01, weight_decay=0),
-                    n_iter=100,
-                )
-                model.fit(X_train)
+            for max_epoch, lr in itertools.product([1000, 10000],  [ 0.001, 0.01, 0.03, 0.1]):
 
-                results.append(
-                    score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization='discretize_meth', n=n)))
-            plot_HMM3(X_test, Z_test, model, path= f"{results_path}/1_dist_on_moons_{discretize_meth}_{n}.png")
-            plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}.png")
+                for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
+                    run = wandb.init(
+                        project="FlowHMM",
+                        name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
+                        notes="FlowHMM with co-occurrence-based learning schema logger"
+                    )
+                    wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
+                    model = FlowHMM(
+                        discretization_method=discretize_meth,
+                        no_nodes=n,
+                        n_components=2,
+                        learning_alg="cooc",
+                        verbose=True,
+                        params="ste",
+                        init_params="ste",
+                        optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0, run=run),
+                        n_iter=100,
+                    )
+                    model.fit(X_train)
+                    wandb.finish()
+
+                    results.append(
+                        score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
+                plot_HMM3(X_test, Z_test, model, path= f"{results_path}/2_dist_on_moons_{discretize_meth}_{n}.png")
+                plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/2_Q_{discretize_meth}_{n}.png")
 
 
     with open(
