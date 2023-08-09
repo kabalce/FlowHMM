@@ -29,7 +29,7 @@ T = 10000
 np.random.seed(2023)
 sns.set_style("white")
 
-wandb_project_name = f"0_GaussianHMM_{datetime.datetime.now()}"
+wandb_project_name = f"0_GaussianHMM_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}"
 
 def init_true_model():
     true_model = hmm.GaussianHMM(n_components=3, covariance_type="full")
