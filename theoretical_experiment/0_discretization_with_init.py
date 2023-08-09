@@ -155,7 +155,8 @@ if __name__ == "__main__":
             verbose=True,
             params="smct",
             init_params="",
-            n_iter=100,
+            n_iter=100, 
+            covariance_type="full",
         )
         model.startprob_ = true_model.startprob_
         model.transmat_ = true_model.transmat_
