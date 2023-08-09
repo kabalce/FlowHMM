@@ -207,7 +207,7 @@ if __name__ == "__main__":
         f"{results_path}/1_discretization.json",
         "w",
     ) as f:
-        json.dump(results, f)
+        json.dump(results, f, indent=4)
 
     results = pd.DataFrame(results)
     for metric, title in zip(['d_tv', 'kl', 'acc', 'll'], ["Total variation distance", "KL divergence", 'State prediction accuracy', 'Loglikelihood']):
