@@ -174,13 +174,14 @@ if __name__ == "__main__":
                 f"{results_path}/1_nodes_{discretize_meth}_{n}.png",
             )
 
-            for max_epoch, lr in itertools.product([1000, 10000, 20000],  [0.0001, 0.001, 0.01, 0.03, 0.1]):  # default for Adam is 0.001
+            for max_epoch, lr in itertools.product([2000],  [0.001, 0.01, 0.03, 0.1]):
 
                 for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = wandb.init(
                         project=wandb_project_name,
                         name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
-                        notes="GaussianHMM with co-occurrence-based learning schema logger"
+                        notes="GaussianHMM with co-occurrence-based learning schema logger",
+                        dir=f'{PROJECT_PATH}/.cache/wandb'
                     )
                     wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
 

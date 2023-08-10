@@ -120,7 +120,7 @@ def plot_HMM3(X, Z, model, path=None):
     """
     Plot emission distribution and nodes
     """
-    norm = multivariate_normal(np.zeros(2), np.concatenate([np.identity(2)[np.newaxis, :, :] for _ in range(2)]))
+    norm = multivariate_normal(np.zeros(2), np.identity(2))
 
     x1, y1 = X.min(axis=0) - .5
     x2, y2 = X.max(axis=0) + .5
