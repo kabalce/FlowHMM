@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
             for max_epoch, lr in itertools.product([1000, 10000],  [0.001, 0.01, 0.03, 0.1]):
 
-                for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
+                for _ in tqdm(range(5)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = wandb.init(
                         project=wandb_project_name,
                         name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",

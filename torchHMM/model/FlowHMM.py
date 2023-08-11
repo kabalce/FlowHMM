@@ -186,8 +186,21 @@ class FlowHmmOptim(torch.nn.Module):
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
+        emissionprob = torch.nn.functional.normalize(
+            torch.cat(
+                [
+                    torch.exp(self.model.emission_score(dist, nodes_tensor)).reshape(
+                        1, -1
+                    )
+                    for dist in self.NFs
+                ],
+                dim=0,
+            ),
+            dim=1, p=1
+        )
+
         return (
-            self.NFs,
+            self._to_numpy(emissionprob),
             self._to_numpy(transmat),
             self._to_numpy(startprob),
         )
@@ -534,46 +547,22 @@ class FlowHMM(hmm.CategoricalHMM):
             optimizer.step()
             if i % 100 == 0:
                 (
-                    self.NFs,
+                    self.emissionprob_,
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
-                self.emissionprob_ = torch.nn.functional.normalize(
-                    torch.cat(
-                        [
-                            torch.exp(self.model.emission_score(dist, nodes_tensor)).reshape(
-                                1, -1
-                            )
-                            for dist in self.NFs
-                        ],
-                        dim=0,
-                    ),
-                    dim=1, p=1
-                ).cpu().detach().numpy()
 
                 if run is not None:
                     run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
 
             elif i % 1000 == 999:  # TODO: select properly
                 (
-                    self.NFs,
+                    self.emissionprob_,
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
 
                 scheduler.step()
-                self.emissionprob_ = torch.nn.functional.normalize(
-                    torch.cat(
-                        [
-                            torch.exp(self.model.emission_score(dist, nodes_tensor)).reshape(
-                                1, -1
-                            )
-                            for dist in self.NFs
-                        ],
-                        dim=0,
-                    ),
-                    dim=1, p=1
-                ).cpu().detach().numpy()
                 if Xc is not None:
                     score = self.score(Xd.reshape(-1, 1), lengthsd)
                     self.monitor_.report(score)
@@ -583,7 +572,7 @@ class FlowHMM(hmm.CategoricalHMM):
                     ):  # TODO: monitor convergence from torch training
                         break
         (
-            self.NFs,
+            self.emissionprob_,
             self.transmat_,
             self.startprob_,
         ) = self.model.get_model_params()
