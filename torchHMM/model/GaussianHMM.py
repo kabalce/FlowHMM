@@ -505,7 +505,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: parametrize
 
         self.model.to(device)
-        run = self.optim_params.pop('run') if 'run' in  self.optim_params.keys() else None
+        run = self.optim_params.pop('run') if 'run' in self.optim_params.keys() else None
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         nodes_tensor = torch.tensor(self.nodes.T).to(device)

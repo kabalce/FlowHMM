@@ -134,6 +134,7 @@ if __name__ == "__main__":
             params="smct",
             init_params="smct",
             n_iter=100,
+            covariance_type="full"
         )
         model.fit(X_train)
 
