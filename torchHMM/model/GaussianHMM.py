@@ -524,6 +524,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
+                scheduler.step()
                 if run is not None:
                     run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
             elif i % 1000 == 999:  # TODO: select properly
@@ -533,9 +534,6 @@ class DiscreteHMM(hmm.GaussianHMM):
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params()
-
-                scheduler.step()
-
 
                 if Xc is not None:
                     score = self.score(Xc, lengthsc)

@@ -196,7 +196,7 @@ if __name__ == "__main__":
                         optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0, run=run),
                         n_iter=100,
                     )
-                    model.fit(X_train)
+                    model.fit(X_train, early_stopping=True)
                     wandb.finish()
 
                     results.append(
