@@ -172,7 +172,7 @@ class FlowHmmOptim(torch.nn.Module):
         """
         return tens.clone().numpy(force=True) #.clone().cpu().detach().numpy()  # TODO: check if it will be working in all cases
 
-    def get_model_params(self):
+    def get_model_params(self, nodes):
         """
         Retrieve HMM parameters from torch.nn.Module
         :return: means, covars, transmat, startprob
@@ -189,10 +189,10 @@ class FlowHmmOptim(torch.nn.Module):
         emissionprob = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    torch.exp(self.model.emission_score(dist, nodes_tensor)).reshape(
+                    torch.exp(self.emission_score(dist_model, nodes)).reshape(
                         1, -1
                     )
-                    for dist in self.NFs
+                    for dist_model in self.NFs
                 ],
                 dim=0,
             ),
@@ -550,7 +550,7 @@ class FlowHMM(hmm.CategoricalHMM):
                     self.emissionprob_,
                     self.transmat_,
                     self.startprob_,
-                ) = self.model.get_model_params()
+                ) = self.model.get_model_params(nodes_tensor)
 
                 if run is not None:
                     run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
@@ -560,7 +560,7 @@ class FlowHMM(hmm.CategoricalHMM):
                     self.emissionprob_,
                     self.transmat_,
                     self.startprob_,
-                ) = self.model.get_model_params()
+                ) = self.model.get_model_params(nodes_tensor)
 
                 scheduler.step()
                 if Xc is not None:
@@ -575,7 +575,7 @@ class FlowHMM(hmm.CategoricalHMM):
             self.emissionprob_,
             self.transmat_,
             self.startprob_,
-        ) = self.model.get_model_params()
+        ) = self.model.get_model_params(nodes_tensor)
 
     def fit(
         self,
