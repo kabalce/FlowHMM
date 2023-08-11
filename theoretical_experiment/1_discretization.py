@@ -136,7 +136,7 @@ def score_model(model_, X_, Z_, Q_gt, info):
         d_tv = None
     return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
 
-results_path = f"{PROJECT_PATH}/theoretical_experiment/1_results_final"
+results_path = f"{PROJECT_PATH}/theoretical_experiment/1_results_final_one_setting"
 Path(results_path).mkdir(exist_ok=True, parents=True)
 grid_sizes = list_grid_size()
 
@@ -174,9 +174,9 @@ if __name__ == "__main__":
                 f"{results_path}/1_nodes_{discretize_meth}_{n}.png",
             )
 
-            for max_epoch, lr in itertools.product([5000],  [0.01, 0.03, 0.1, 0.3]):
+            for max_epoch, lr in itertools.product([10000],  [0.1]):
 
-                for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
+                for _ in tqdm(range(50)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = wandb.init(
                         project=wandb_project_name,
                         name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
