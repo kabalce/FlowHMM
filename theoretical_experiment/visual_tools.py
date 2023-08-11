@@ -132,7 +132,7 @@ def plot_HMM3(X, Z, model, path=None):
     plt.figure(figsize=(5, 5))
     for k in range(model.n_components):
         plt.scatter(X[Z == k, 0], X[Z == k, 1], color=colors[k], alpha=0.1)
-        data_NF = model.NFs[k](torch.tensor(data).to(model.model.device)).cpu().detach().numpy()
+        data_NF = model.model.NFs[k](torch.tensor(data).to(model.model.device)).cpu().detach().numpy()
         plt.contour(data_NF[:, 0], data_NF[:, 1], np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=6)
 
     plt.scatter(model.nodes[0], model.nodes[1])
