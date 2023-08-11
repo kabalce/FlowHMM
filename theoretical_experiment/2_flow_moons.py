@@ -147,14 +147,14 @@ if __name__ == "__main__":
         for n in grid_sizes:
             model = init_model(discretize_meth, X_train, n)
 
-            for max_epoch, lr in itertools.product([1000, 10000],  [0.001, 0.01, 0.03, 0.1]):
+            for max_epoch, lr in itertools.product([2000],  [0.01, 0.03, 0.1]):
 
                 for _ in tqdm(range(5)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = wandb.init(
                         project=wandb_project_name,
                         name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
                         notes="FlowHMM with co-occurrence-based learning schema logger",
-                        dir=f'{PROJECT_PATH}/.cache/wandb'
+                        dir=f'{PROJECT_PATH}/'
                     )
                     wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
                     model = FlowHMM(
