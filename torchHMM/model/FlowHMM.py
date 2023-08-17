@@ -140,7 +140,7 @@ class FlowHmmOptim(torch.nn.Module):
         self.stds = torch.tensor(stds).double()  #.to(self.device)
 
     def emission_score(self, cnf, nodes, mean, std):
-        y, delta_log_py = cnf(((nodes - mean) / std).float(), torch.zeros(nodes.size(0), 1).to(nodes))
+        y, delta_log_py = cnf(((nodes - mean) / std).float().to(nodes), torch.zeros(nodes.size(0), 1).to(nodes))
         log_py = standard_normal_logprob(y).sum(1)
         delta_log_py = delta_log_py.sum(1)
         log_px = log_py - delta_log_py
