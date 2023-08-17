@@ -90,11 +90,14 @@ class FlowHmmOptim(torch.nn.Module):
         self,
         n_components: int,
         n_dim: int,
+            means,
+            stds,
         startprob_: Optional[npt.NDArray] = None,
         transmat_: Optional[npt.NDArray] = None,  # Initial values
         trainable: str = "",
         trans_from: str = "S",
-        args = dict()
+        args = dict(),
+
     ):
         """
         Initialize torch.nn.Module for HMM parameters estimation
@@ -133,10 +136,12 @@ class FlowHmmOptim(torch.nn.Module):
         )
 
         self.NFs = torch.nn.ModuleList([build_model_tabular(Args(args), n_dim) for _ in range(n_components)])
+        self.means = torch.tensor(means)
+        self.stds = torch.tensor(stds)
 
-    def emission_score(self, cnf, nodes):
+    def emission_score(self, cnf, nodes, mean=0, std=0):
         y, delta_log_py = cnf(nodes, torch.zeros(nodes.size(0), 1).to(nodes))
-        log_py = standard_normal_logprob(y).sum(1)
+        log_py = standard_normal_logprob((y - mean) / std).sum(1)
         delta_log_py = delta_log_py.sum(1)
         log_px = log_py - delta_log_py
         return log_px
@@ -149,10 +154,10 @@ class FlowHmmOptim(torch.nn.Module):
         B = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    torch.exp(self.emission_score(dist_model, nodes)).reshape(
+                    torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
                         1, -1
                     )
-                    for dist_model in self.NFs
+                    for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
                 ],
                 dim=0,
             ),
@@ -189,10 +194,10 @@ class FlowHmmOptim(torch.nn.Module):
         emissionprob = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    torch.exp(self.emission_score(dist_model, nodes)).reshape(
+                    torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
                         1, -1
                     )
-                    for dist_model in self.NFs
+                    for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
                 ],
                 dim=0,
             ),
@@ -227,6 +232,9 @@ class FlowHMM(hmm.CategoricalHMM):
         params: str = "te",  # TODO: default without 's'
         init_params: str = "te",
         implementation: str = "log",
+
+        means=None,
+        stds=None,
     ) -> None:
         super(FlowHMM, self).__init__(
             n_components=n_components,
@@ -269,6 +277,9 @@ class FlowHMM(hmm.CategoricalHMM):
             self.optim_params = (
                 optim_params if optim_params is not None else dict(lr=0.03)
             )
+
+        self.means = means
+        self.stds = stds
 
         # TODO: make it optional
         self.l = l
@@ -477,6 +488,9 @@ class FlowHMM(hmm.CategoricalHMM):
         #     torch_inits["u_"] = self.u_
         torch_inits["startprob_"] = self.startprob_
         torch_inits["transmat_"] = self.transmat_
+        torch_inits["means"] = self.means if self.means is not None else np.zeros((self.n_components, X.shape[1]))
+        torch_inits["stds"] = self.stds if self.stds is not None else np.ones((self.n_components, X.shape[1]))
+
         if self.learning_alg == "cooc":
             self.model = FlowHmmOptim(**torch_inits)
 

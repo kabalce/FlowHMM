@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from sklearn.datasets import make_moons
 import numpy as np
 import pandas as pd
 import scipy
@@ -16,53 +17,28 @@ from ssm.util import find_permutation
 from pathlib import Path
 from hmmlearn import hmm
 
-from theoretical_experiment.visual_tools import plot_HMM, plot_Qs, plot_metric
+from visual_tools import plot_HMM2, plot_Qs, plot_metric, plot_HMM3
 
-PROJECT_PATH = Path(__file__).parent # .parent
+PROJECT_PATH = Path(__file__).parent
 # import sys
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
-from torchHMM.model.GaussianHMM import DiscreteHMM, DISCRETIZATION_TECHNIQUES, HmmOptim
+from torchHMM.model.FlowHMM import FlowHMM, DISCRETIZATION_TECHNIQUES
 
 LEARNING_ALGORITHMS = ["em", "cooc"]
 T = 10000
 np.random.seed(2023)
 sns.set_style("white")
 
-wandb_project_name = f"1_GaussianHMM_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}"
-
-def init_true_model():
-    true_model = hmm.GaussianHMM(n_components=3, covariance_type="full")
-
-    true_model.startprob_ = np.array([0.6, 0.3, 0.1])
-    true_model.transmat_ = np.array([[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0.3, 0.3, 0.4]])
-
-    true_model.means_ = np.array([[0.0, 0.0], [3.0, -3.0], [4.0, 3.0]])
-    true_model.covars_ = (
-        np.array(
-            [
-                [[1, -0.5], [-0.5, 1.2]],
-                [[0.6, -0.5], [-0.5, 1.2]],
-                [[1.5, 0.5], [0.5, 2.2]],
-            ]
-        )
-        * 0.8
-    )
-
-    true_model.n_features = 2
-
-    norm1 = multivariate_normal(true_model.means_[0], true_model.covars_[0])
-    norm2 = multivariate_normal(true_model.means_[1], true_model.covars_[1])
-    norm3 = multivariate_normal(true_model.means_[2], true_model.covars_[2])
-    norms = [norm1, norm2, norm3]
-
-    return true_model, norms
-
+wandb_project_name = f"3_FlowHMM_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}"
 
 def Q_from_params(model_):
     """
     Calculate Q from model parameters
     """
+    if hasattr(model_, 'emissionprob_'):
+        return Q_from_params_d(model_)
+
     S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
     distributions_ = [
         scipy.stats.multivariate_normal(model_.means_[i], model_.covars_[i])
@@ -77,26 +53,29 @@ def Q_from_params(model_):
     return B_.T @ S_ @ B_
 
 
-def init_model_with_params(discretize_meth, true_model_, X_train_, n):
+def Q_from_params_d(model_):
+    """
+    Calculate Q from model parameters
+    """
+    S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
+    B_ = model_.emissionprob_
+    return B_.T @ S_ @ B_
+
+
+def init_model(discretize_meth, X_train_, n):
     """
     Init DiscreteHMM with parameters from true model
     """
-    model_ = DiscreteHMM(
+    model_ = FlowHMM(
         discretize_meth,
         n,
-        n_components=3,
         learning_alg="cooc",
         verbose=True,
-        params="mct",
-        init_params="",
+        params="ste",
+        init_params="ste",
         optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0),
         n_iter=100,
     )
-
-    model_.startprob_ = true_model_.startprob_
-    model_.transmat_ = true_model_.transmat_
-    model_.means_ = true_model_.means_
-    model_.covars_ = true_model_.covars_
 
     model_._init(X_train_)
     model_.provide_nodes(X_train_, False)
@@ -107,8 +86,10 @@ def list_grid_size():
     return [
         2**2,
         2**4,
-        2**6
+        2**6,
+        2**8
     ]
+
 
 
 def kl_divergence(p_, q_):
@@ -125,8 +106,8 @@ def accuracy(Z_hat, Z_):
     return (perm[Z_hat] == Z_).mean()
 
 def score_model(model_, X_, Z_, Q_gt, info):
-    ll = model.score(X_)
-    acc = accuracy(model_.predict(X_), Z_)
+    ll = model.score(X_, np.array(X_.shape[0]))
+    acc = accuracy(model_.predict(X_, np.array(X_.shape[0])), Z_)
     if Q_gt is not None:
         Q = Q_from_params(model_)
         kl = kl_divergence(Q, Q_gt)
@@ -136,83 +117,102 @@ def score_model(model_, X_, Z_, Q_gt, info):
         d_tv = None
     return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
 
-results_path = f"{PROJECT_PATH}/theoretical_experiment/1_results_final"
+
+def init_params(X_expert, Z_expert):
+    n_comp = Z_expert.max()
+    pi = np.ones(n_comp) / n_comp
+    A = np.zeros()
+    for i in range(Z_expert.shape[0] - 1):
+        A[Z[i], Z[i+1]] += 1
+    A = A / A.sum(axis=1).reshape(-1, 1)
+    means = np.concatenate([X_expert[Z_expert == i, :].mean(axis=0).reshape(1, -1) for i in range(n_comp)])
+    stds = np.concatenate([X_expert[Z_expert == i, :].mean(axis=0).reshape(1, -1) for i in range(n_comp)])
+    return pi, A, means, stds
+
+results_path = f"{PROJECT_PATH}/theoretical_experiment/3_results_final"
 Path(results_path).mkdir(exist_ok=True, parents=True)
 grid_sizes = list_grid_size()
 
 
 if __name__ == "__main__":
-    true_model, _ = init_true_model()
+    X_train, Z_train = make_moons(T, random_state=2023, noise=0.05)
+    X_test, Z_test = make_moons(T // 10, random_state=2022, noise=0.05)
 
-    X_train, Z_train = true_model.sample(T)
-    X_test, Z_test = true_model.sample(T // 10)
+    X_expert, Z_expert = make_moons(100, random_state=2021, noise=0.05)
+
+    A_init, pi_init, means_init, covars_init = init_params(X_expert, Z_expert)
 
     results = list()
 
     for _ in tqdm(range(20)):  # the initialization differ in runs
         model = hmm.GaussianHMM(
-            n_components=3,
+            n_components=2,
             verbose=True,
             params="smct",
-            init_params="smct",
+            init_params="",
             n_iter=100,
+            covariance_type="full"
         )
+        model.startprob_ = pi_init
+        model.transmat_ = A_init
+        model.means_ = means_init
+        model.covars_ = np.concatenate([np.diag(x)[:, :, np.newaxis] for x in covars_init], axis=2)
+
         model.fit(X_train)
 
         results.append(
-            score_model(model, X_test, Z_test, None, dict()))
+            score_model(model, X_test, Z_test, None, dict(discretization='none')))
+
+    plot_HMM2(X_test, Z_test, model, path=f"{results_path}/3_gaussians_on_moons.png")
 
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in grid_sizes:
-            model = init_model_with_params(discretize_meth, true_model, X_train, n)
-
-            plot_HMM(  # Example plot
-                X_train,
-                model,
-                discretize_meth,
-                n,
-                f"{results_path}/1_nodes_{discretize_meth}_{n}.png",
-            )
+            model = init_model(discretize_meth, X_train, n)
 
             for max_epoch, lr in itertools.product([2000],  [0.001, 0.01, 0.1]):
 
-                for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
-                    run=None
+                for _ in tqdm(range(2)): # As we work with random methods, the initialization and  the discretization differ in runs
+                    run = None
                     # run = wandb.init(
-                    #     project=wandb_project_name,
-                    #     name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
-                    #     notes="GaussianHMM with co-occurrence-based learning schema logger",
-                    #     dir=f'{PROJECT_PATH}//wandb'
+                    #    project=wandb_project_name,
+                    #    name=f"ex_3_{discretize_meth}_{n}_{max_epoch}_{lr}",
+                    #    notes="FlowHMM with co-occurrence-based learning schema logger",
+                    #    dir=f'{PROJECT_PATH}/'
                     # )
                     # wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
-
-                    model = DiscreteHMM(
+                    model = FlowHMM(
                         discretization_method=discretize_meth,
                         no_nodes=n,
-                        n_components=3,
+                        n_components=2,
                         learning_alg="cooc",
                         verbose=True,
-                        params="mct",
-                        init_params="mct",
+                        params="ste",
+                        init_params="",
                         optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0, run=run),
                         n_iter=100,
                         optimizer="Adam",
+                        means=means_init,
+                        stds=covars_init
                     )
-                    model.fit(X_train, early_stopping=True)
+
+                    model.startprob_ = pi_init
+                    model.transmat_ = A_init
+
+                    model.fit(X_train)
                     # wandb.finish()
 
                     results.append(
                         score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
-
-                plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}_{max_epoch}_{lr}.png")
+                plot_HMM3(X_test, model, path=f"{results_path}/3_dist_on_moons_{discretize_meth}_{n}_{max_epoch}_{lr}.png")
+                plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/3_Q_{discretize_meth}_{n}_{max_epoch}_{lr}.png")
 
 
     with open(
-        f"{results_path}/1_discretization.json",
+        f"{results_path}/3_discretization.json",
         "w",
     ) as f:
         json.dump(results, f, indent=4)
 
     results = pd.DataFrame(results)
     for metric, title in zip(['d_tv', 'kl', 'acc', 'll'], ["Total variation distance", "KL divergence", 'State prediction accuracy', 'Loglikelihood']):
-        plot_metric(results, metric, title, f"{results_path}/1_{metric}.png")
+        plot_metric(results, metric, title, f"{results_path}/3_{metric}.png")
