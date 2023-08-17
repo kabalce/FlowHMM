@@ -19,7 +19,7 @@ from hmmlearn import hmm
 
 from visual_tools import plot_HMM2, plot_Qs, plot_metric, plot_HMM3
 
-PROJECT_PATH = Path(__file__).parent.parent
+PROJECT_PATH = Path(__file__).parent
 # import sys
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
@@ -86,7 +86,8 @@ def list_grid_size():
     return [
         2**2,
         2**4,
-        2**6
+        2**6,
+        2**8
     ]
 
 
@@ -147,16 +148,16 @@ if __name__ == "__main__":
         for n in grid_sizes:
             model = init_model(discretize_meth, X_train, n)
 
-            for max_epoch, lr in itertools.product([2000],  [0.01, 0.03, 0.1]):
+            for max_epoch, lr in itertools.product([10000],  [0.01, 0.03, 0.1, 0.3]):
 
-                for _ in tqdm(range(5)): # As we work with random methods, the initialization and  the discretization differ in runs
-                    # run = wandb.init(
-                    #    project=wandb_project_name,
-                    #    name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
-                    #    notes="FlowHMM with co-occurrence-based learning schema logger",
-                    #    dir=f'{PROJECT_PATH}/'
-                    #)
-                    #wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
+                for _ in tqdm(range(2)): # As we work with random methods, the initialization and  the discretization differ in runs
+                    run = wandb.init(
+                       project=wandb_project_name,
+                       name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
+                       notes="FlowHMM with co-occurrence-based learning schema logger",
+                       dir=f'{PROJECT_PATH}/'
+                    )
+                    wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
                     model = FlowHMM(
                         discretization_method=discretize_meth,
                         no_nodes=n,
@@ -167,21 +168,22 @@ if __name__ == "__main__":
                         init_params="ste",
                         optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0), # , run=run),
                         n_iter=100,
+                        optimizer="Adam",
                     )
                     model.fit(X_train)
-                    #wandb.finish()
+                    wandb.finish()
 
                     results.append(
                         score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
-                # plot_HMM3(X_test, Z_test, model, path= f"{results_path}/2_dist_on_moons_{discretize_meth}_{n}.png")
-                # plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/2_Q_{discretize_meth}_{n}.png")
+                plot_HMM3(X_test, model, path=f"{results_path}/2_dist_on_moons_{discretize_meth}_{n}.png")
+                plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/2_Q_{discretize_meth}_{n}.png")
 
 
     with open(
-        f"{results_path}/2_flow_moons.json",
+        f"{results_path}/2_discretization.json",
         "w",
     ) as f:
-        json.dump(results, f)
+        json.dump(results, f, indent=4)
 
     results = pd.DataFrame(results)
     for metric, title in zip(['d_tv', 'kl', 'acc', 'll'], ["Total variation distance", "KL divergence", 'State prediction accuracy', 'Loglikelihood']):

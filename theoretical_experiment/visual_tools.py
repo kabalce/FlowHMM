@@ -116,30 +116,38 @@ def plot_HMM2(X, Z, model, path=None):
     plt.show()
     plt.close()
 
-def plot_HMM3(X, Z, model, path=None):
+
+
+def plot_HMM3(X, model, path=None):
     """
-    Plot emission distribution and nodes
+    Plot emission distribution
     """
-    norm = multivariate_normal(np.zeros(2), np.identity(2))
+    norm1 = multivariate_normal(model.means_[0], model.covars_[0])
+    norm2 = multivariate_normal(model.means_[1], model.covars_[1])
+    # norm3 = multivariate_normal(model.means_[2], model.covars_[2])
+    norms = [norm1, norm2]
 
     x1, y1 = X.min(axis=0) - .5
     x2, y2 = X.max(axis=0) + .5
 
     XX, YY = np.meshgrid(np.linspace(x1, x2, 100), np.linspace(y1, y2, 100))
     data = np.column_stack((XX.ravel(), YY.ravel()))
-    lls = norm.pdf(data).reshape(-1, 1)
+    # TODO: transformuj dane data siecią
+    lls = np.concatenate([model.model.emission_score(model.model.NFs[i], torch.Tensor(data)).detach().numpy().reshape(-1, 1) for i in range(model.n_components)], axis=1)
+
+    plt.scatter(X[:, 0], X[:, 1], color='grey', alpha=0.1)
 
     plt.figure(figsize=(5, 5))
     for k in range(model.n_components):
-        plt.scatter(X[Z == k, 0], X[Z == k, 1], color=colors[k], alpha=0.1)
-        data_NF = model.model.NFs[k](torch.tensor(data).to(model.model.device)).cpu().detach().numpy()
-        plt.contour(data_NF[:, 0], data_NF[:, 1], np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=6)
+        plt.contour(XX, YY, np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=6)
 
-    plt.scatter(model.nodes[0], model.nodes[1])
+    plt.scatter(model.nodes[0, :], model.nodes[1, ], color='blue', alpha=0.1)
+
     plt.xlabel("$x_1$")
     plt.ylabel("$x_2$")
-    plt.suptitle("True Distributions and Nodes")
+    plt.title(f"Normalizing FLow on Moons")
     if path is not None:
         plt.savefig(path)
     plt.show()
     plt.close()
+

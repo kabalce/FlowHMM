@@ -157,11 +157,11 @@ class FlowHmmOptim(torch.nn.Module):
                 dim=0,
             ),
             dim=1, p=1
-        )
+        ).double()
 
-        S_ = torch.exp(self._S_unconstrained)
+        S_ = torch.exp(self._S_unconstrained).double()
         S = S_ / S_.sum()
-        return (B.T.double() @ S.double() @ B.double()).float()
+        return (B.transpose(1, 0) @ S @ B).float()
 
     @staticmethod
     def _to_numpy(tens: torch.tensor):
@@ -267,7 +267,7 @@ class FlowHMM(hmm.CategoricalHMM):
                 )
                 self.optimizer = torch.optim.SGD
             self.optim_params = (
-                optim_params if optim_params is not None else dict(lr=0.001)
+                optim_params if optim_params is not None else dict(lr=0.03)
             )
 
         # TODO: make it optional
@@ -545,7 +545,7 @@ class FlowHMM(hmm.CategoricalHMM):
             )
             loss.backward()
             optimizer.step()
-            if i % 100 == 0:
+            if i % 100 == 0:  # TODO: think of it...
                 (
                     self.emissionprob_,
                     self.transmat_,
@@ -554,6 +554,8 @@ class FlowHMM(hmm.CategoricalHMM):
 
                 if run is not None:
                     run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
+                else:
+                    print({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
 
             elif i % 1000 == 999:  # TODO: select properly
                 (
