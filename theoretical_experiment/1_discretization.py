@@ -177,13 +177,14 @@ if __name__ == "__main__":
             for max_epoch, lr in itertools.product([1000],  [0.001, 0.01, 0.1]):
 
                 for _ in tqdm(range(50)): # As we work with random methods, the initialization and  the discretization differ in runs
-                    run = wandb.init(
-                        project=wandb_project_name,
-                        name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
-                        notes="GaussianHMM with co-occurrence-based learning schema logger",
-                        dir=f'{PROJECT_PATH}//wandb'
-                    )
-                    wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
+                    run=None
+                    # run = wandb.init(
+                    #     project=wandb_project_name,
+                    #     name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
+                    #     notes="GaussianHMM with co-occurrence-based learning schema logger",
+                    #     dir=f'{PROJECT_PATH}//wandb'
+                    # )
+                    # wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
 
                     model = DiscreteHMM(
                         discretization_method=discretize_meth,
@@ -198,7 +199,7 @@ if __name__ == "__main__":
                         optimizer="Adam",
                     )
                     model.fit(X_train, early_stopping=True)
-                    wandb.finish()
+                    # wandb.finish()
 
                     results.append(
                         score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
