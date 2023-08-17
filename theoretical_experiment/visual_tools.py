@@ -142,7 +142,7 @@ def plot_HMM3(X, model, path=None):
 
     plt.xlabel("$x_1$")
     plt.ylabel("$x_2$")
-    plt.title(f"Normalizing FLow on Moons")
+    plt.title(f"Normalizing Flows on Moons")
     if path is not None:
         plt.savefig(path)
     plt.show()

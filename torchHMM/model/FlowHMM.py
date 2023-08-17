@@ -136,12 +136,12 @@ class FlowHmmOptim(torch.nn.Module):
         )
 
         self.NFs = torch.nn.ModuleList([build_model_tabular(Args(args), n_dim) for _ in range(n_components)])
-        self.means = torch.tensor(means)
-        self.stds = torch.tensor(stds)
+        self.means = torch.tensor(means).double()  #.to(self.device)
+        self.stds = torch.tensor(stds).double()  #.to(self.device)
 
-    def emission_score(self, cnf, nodes, mean=0, std=0):
-        y, delta_log_py = cnf(nodes, torch.zeros(nodes.size(0), 1).to(nodes))
-        log_py = standard_normal_logprob((y - mean) / std).sum(1)
+    def emission_score(self, cnf, nodes, mean, std):
+        y, delta_log_py = cnf(((nodes - mean) / std).float(), torch.zeros(nodes.size(0), 1).to(nodes))
+        log_py = standard_normal_logprob(y).sum(1)
         delta_log_py = delta_log_py.sum(1)
         log_px = log_py - delta_log_py
         return log_px
@@ -546,6 +546,9 @@ class FlowHMM(hmm.CategoricalHMM):
 
         self.model.to(device)
         self.model.device = device
+        self.model.means.to(device)  # could be nicer...
+        self.model.stds.to(device)
+
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
         run = self.optim_params.pop('run') if 'run' in  self.optim_params.keys() else None
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)

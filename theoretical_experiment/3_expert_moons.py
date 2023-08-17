@@ -119,14 +119,14 @@ def score_model(model_, X_, Z_, Q_gt, info):
 
 
 def init_params(X_expert, Z_expert):
-    n_comp = Z_expert.max()
+    n_comp = Z_expert.max() + 1
     pi = np.ones(n_comp) / n_comp
-    A = np.zeros()
+    A = np.zeros((n_comp, n_comp))
     for i in range(Z_expert.shape[0] - 1):
-        A[Z[i], Z[i+1]] += 1
+        A[Z_expert[i], Z_expert[i+1]] += 1
     A = A / A.sum(axis=1).reshape(-1, 1)
     means = np.concatenate([X_expert[Z_expert == i, :].mean(axis=0).reshape(1, -1) for i in range(n_comp)])
-    stds = np.concatenate([X_expert[Z_expert == i, :].mean(axis=0).reshape(1, -1) for i in range(n_comp)])
+    stds = np.concatenate([X_expert[Z_expert == i, :].std(axis=0).reshape(1, -1) for i in range(n_comp)])
     return pi, A, means, stds
 
 results_path = f"{PROJECT_PATH}/theoretical_experiment/3_results_final"
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     X_expert, Z_expert = make_moons(100, random_state=2021, noise=0.05)
 
-    A_init, pi_init, means_init, covars_init = init_params(X_expert, Z_expert)
+    pi_init, A_init, means_init, covars_init = init_params(X_expert, Z_expert)
 
     results = list()
 
