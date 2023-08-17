@@ -122,10 +122,6 @@ def plot_HMM3(X, model, path=None):
     """
     Plot emission distribution
     """
-    norm1 = multivariate_normal(model.means_[0], model.covars_[0])
-    norm2 = multivariate_normal(model.means_[1], model.covars_[1])
-    # norm3 = multivariate_normal(model.means_[2], model.covars_[2])
-    norms = [norm1, norm2]
 
     x1, y1 = X.min(axis=0) - .5
     x2, y2 = X.max(axis=0) + .5
