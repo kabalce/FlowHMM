@@ -131,9 +131,10 @@ def plot_HMM3(X, model, path=None):
     # TODO: transformuj dane data siecią
     lls = np.concatenate([model.model.emission_score(model.model.NFs[i], torch.Tensor(data).to(model.model.device)).cpu().detach().numpy().reshape(-1, 1) for i in range(model.n_components)], axis=1)
 
-    plt.scatter(X[:, 0], X[:, 1], color='grey', alpha=0.4)
+
 
     plt.figure(figsize=(5, 5))
+    plt.scatter(X[:, 0], X[:, 1], color='grey', alpha=0.1)
     for k in range(model.n_components):
         plt.contour(XX, YY, np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=6)
 
