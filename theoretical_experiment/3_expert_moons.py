@@ -156,7 +156,7 @@ if __name__ == "__main__":
         model.startprob_ = pi_init
         model.transmat_ = A_init
         model.means_ = means_init
-        model.covars_ = np.concatenate([np.diag(x)[:, :, np.newaxis] for x in covars_init], axis=2)
+        model.covars_ = np.concatenate([np.diag(x)[np.newaxis, :, :] for x in covars_init], axis=0)
 
         model.fit(X_train)
 
