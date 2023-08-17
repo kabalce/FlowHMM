@@ -123,8 +123,8 @@ def plot_HMM3(X, model, path=None):
     Plot emission distribution
     """
 
-    x1, y1 = X.min(axis=0) - .5
-    x2, y2 = X.max(axis=0) + .5
+    x1, y1 = X.min(axis=0) - 1.5
+    x2, y2 = X.max(axis=0) + 1.5
 
     XX, YY = np.meshgrid(np.linspace(x1, x2, 100), np.linspace(y1, y2, 100))
     data = np.column_stack((XX.ravel(), YY.ravel()))
