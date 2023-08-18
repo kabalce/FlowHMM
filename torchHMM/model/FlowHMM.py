@@ -191,8 +191,7 @@ class FlowHmmOptim(torch.nn.Module):
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
-        emissionprob = torch.nn.functional.normalize(
-            torch.cat(
+        em_ = torch.cat(
                 [
                     torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
                         1, -1
@@ -200,7 +199,12 @@ class FlowHmmOptim(torch.nn.Module):
                     for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
                 ],
                 dim=0,
-            ),
+            )
+
+        em_[em_ == 0] += 1e-10
+
+        emissionprob = torch.nn.functional.normalize(
+            em_,
             dim=1, p=1
         )
 
