@@ -638,12 +638,19 @@ class FlowHMM(hmm.CategoricalHMM):
             )
 
     def score(self, X, lengths):
-        Xd = self.discretize(X, force=False).reshape(-1, 1)
-        return super().score(Xd, lengths)
+        # Xd = self.discretize(X, force=False).reshape(-1, 1)
+        return super().score(X, lengths)
+
+    def _compute_log_likelihood(self, X):
+        return np.concatenate([
+            self.model.emission_score(self.model.NFs[i],
+                                       torch.Tensor(X).to(self.model.device),
+                                       self.model.means[i],
+                                       self.model.stds[i]).cpu().detach().numpy().reshape(-1, 1) for i in range(self.n_components)], axis=1)
 
     def predict(self, X, lengths=None):
-        Xd = self.discretize(X, force=False).reshape(-1, 1)
-        return super().predict(Xd, lengths)
+        # Xd = self.discretize(X, force=False).reshape(-1, 1)
+        return super().predict(X, lengths)
 
 
 
@@ -671,8 +678,10 @@ if __name__ == "__main__":
     )
 
     myHMM.fit(obs)
-    myHMM2.fit(obs)
-    myHMM3.fit(obs)
-    myHMM4.fit(obs)
-    myHMM5.fit(obs)
-    myHMM6.fit(obs)
+    print(myHMM.score(obs))
+    print(myHMM.predict(obs))
+    # myHMM2.fit(obs)
+    # myHMM3.fit(obs)
+    # myHMM4.fit(obs)
+    # myHMM5.fit(obs)
+    # myHMM6.fit(obs)
