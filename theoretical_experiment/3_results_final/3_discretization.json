@@ -1,0 +1,282 @@
+[
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": null,
+        "ll": -1710.4880124441338,
+        "acc": 0.856,
+        "d_tv": null,
+        "discretization": "none"
+    },
+    {
+        "kl": 14.671102833884195,
+        "ll": -9790.82723854113,
+        "acc": 0.756,
+        "d_tv": 0.05730612298894226,
+        "discretization": "grid",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 15.32808248399829,
+        "ll": -17358.15905035328,
+        "acc": 0.5,
+        "d_tv": 0.012319063258404123,
+        "discretization": "grid",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 0.9478494454301463,
+        "ll": -7927.782016763905,
+        "acc": 0.5,
+        "d_tv": 0.028128899269673442,
+        "discretization": "random",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 6.897330082217956,
+        "ll": -13028.2872236263,
+        "acc": 0.5,
+        "d_tv": 0.008306199829002782,
+        "discretization": "random",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 6.6921037360106626,
+        "ll": -8487.648989818403,
+        "acc": 0.698,
+        "d_tv": 0.04800644847658089,
+        "discretization": "latin_cube_u",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 15.020171351163647,
+        "ll": -15293.920403697482,
+        "acc": 0.5,
+        "d_tv": 0.01177731277362027,
+        "discretization": "latin_cube_u",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 9.088983843135761,
+        "ll": -8381.436258966707,
+        "acc": 0.609,
+        "d_tv": 0.03918986444822475,
+        "discretization": "latin_cube_q",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 15.322288882511693,
+        "ll": -14939.263325636317,
+        "acc": 0.5,
+        "d_tv": 0.01206299516840184,
+        "discretization": "latin_cube_q",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 12.09470660063009,
+        "ll": -12204.291161898775,
+        "acc": 0.578,
+        "d_tv": 0.04637137459344666,
+        "discretization": "uniform",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 15.809862995486665,
+        "ll": -16980.147433807015,
+        "acc": 0.5,
+        "d_tv": 0.012712529947363618,
+        "discretization": "uniform",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 4.256730046676879,
+        "ll": -10903.181703759146,
+        "acc": 0.635,
+        "d_tv": 0.05180751895903899,
+        "discretization": "sobol",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 14.573571737816788,
+        "ll": -14870.0025145637,
+        "acc": 0.5,
+        "d_tv": 0.011670346414535506,
+        "discretization": "sobol",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 4.95641363068275,
+        "ll": -10690.63734019869,
+        "acc": 0.817,
+        "d_tv": 0.045759550200291946,
+        "discretization": "halton",
+        "n": 16,
+        "max_epoch": 1000,
+        "lr": 0.01
+    },
+    {
+        "kl": 16.17310685216352,
+        "ll": -18007.418029461056,
+        "acc": 0.5,
+        "d_tv": 0.012543252477129133,
+        "discretization": "halton",
+        "n": 64,
+        "max_epoch": 1000,
+        "lr": 0.01
+    }
+]
