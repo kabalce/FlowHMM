@@ -87,7 +87,7 @@ def list_grid_size():
         # 2**2,
         2**4,
         2**6,
-        2**8
+        # 2**8
     ]
 
 
@@ -169,9 +169,9 @@ if __name__ == "__main__":
         for n in grid_sizes:
             model = init_model(discretize_meth, X_train, n)
 
-            for max_epoch, lr in itertools.product([5000],  [0.001]):
+            for max_epoch, lr in itertools.product([1000],  [0.01]):
 
-                for _ in tqdm(range(2)): # As we work with random methods, the initialization and  the discretization differ in runs
+                for _ in tqdm(range(1)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = None
                     # run = wandb.init(
                     #    project=wandb_project_name,
@@ -207,11 +207,11 @@ if __name__ == "__main__":
                 plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/3_Q_{discretize_meth}_{n}_{max_epoch}_{lr}.png")
 
 
-    with open(
-        f"{results_path}/3_discretization.json",
-        "w",
-    ) as f:
-        json.dump(results, f, indent=4)
+                with open(
+                    f"{results_path}/3_discretization.json",
+                    "w",
+                ) as f:
+                    json.dump(results, f, indent=4)
 
     results = pd.DataFrame(results)
     for metric, title in zip(['d_tv', 'kl', 'acc', 'll'], ["Total variation distance", "KL divergence", 'State prediction accuracy', 'Loglikelihood']):
