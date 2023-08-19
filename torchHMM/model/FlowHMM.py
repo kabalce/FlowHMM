@@ -141,18 +141,19 @@ class FlowHmmOptim(torch.nn.Module):
 
     def emission_score(self, cnf, nodes, mean, std):
         y, delta_log_py = cnf(((nodes - mean) / std).float().to(nodes), torch.zeros(nodes.size(0), 1).to(nodes))
+        if y.isnan().sum():
+            try:
+                y[y.isnan()] = y[~y.isnan()].mean()
+            except:
+                y[y.isnan()] = 0
+                print("filling y with zeros")
         log_py = standard_normal_logprob(y).sum(1)
         delta_log_py = delta_log_py.sum(1)
         log_px = log_py - delta_log_py
         return log_px
-    def forward(self, nodes):
-        """
-        Calculate the forward pass of the torch.nn.Module
-        :return: cooc matrix from current parameters
-        """
 
-        B = torch.nn.functional.normalize(
-            torch.cat(
+    def emission_matrix(self, nodes):
+        B = torch.cat(
                 [
                     torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
                         1, -1
@@ -160,9 +161,20 @@ class FlowHmmOptim(torch.nn.Module):
                     for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
                 ],
                 dim=0,
-            ),
+            )
+        B[B <= 1e-10] += 1e-10
+        B = torch.nn.functional.normalize(
+            B,
             dim=1, p=1
         ).double()
+        return B
+    def forward(self, nodes):
+        """
+        Calculate the forward pass of the torch.nn.Module
+        :return: cooc matrix from current parameters
+        """
+
+        B = self.emission_matrix(nodes)
 
         S_ = torch.exp(self._S_unconstrained).double()
         S = S_ / S_.sum()
@@ -191,22 +203,7 @@ class FlowHmmOptim(torch.nn.Module):
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
-        em_ = torch.cat(
-                [
-                    torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
-                        1, -1
-                    )
-                    for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
-                ],
-                dim=0,
-            )
-
-        em_[em_ == 0] += 1e-10
-
-        emissionprob = torch.nn.functional.normalize(
-            em_,
-            dim=1, p=1
-        )
+        emissionprob = self.emission_matrix(nodes)
 
         return (
             self._to_numpy(emissionprob),
@@ -568,7 +565,7 @@ class FlowHMM(hmm.CategoricalHMM):
             optimizer.step()
             if i % 100 == 0:  # TODO: think of it...
                 (
-                    self.emissionprob_,
+                    _,
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params(nodes_tensor)
@@ -580,7 +577,7 @@ class FlowHMM(hmm.CategoricalHMM):
 
             elif i % 1000 == 999:  # TODO: select properly
                 (
-                    self.emissionprob_,
+                    _,
                     self.transmat_,
                     self.startprob_,
                 ) = self.model.get_model_params(nodes_tensor)
@@ -594,11 +591,18 @@ class FlowHMM(hmm.CategoricalHMM):
                         self.monitor_.converged
                     ):  # TODO: monitor convergence from torch training
                         break
-        (
-            self.emissionprob_,
-            self.transmat_,
-            self.startprob_,
-        ) = self.model.get_model_params(nodes_tensor)
+        try:
+            (
+                self.emissionprob_,
+                self.transmat_,
+                self.startprob_,
+            ) = self.model.get_model_params(nodes_tensor)
+        except:
+            (
+                _,
+                self.transmat_,
+                self.startprob_,
+            ) = self.model.get_model_params(nodes_tensor)
 
     def fit(
         self,
