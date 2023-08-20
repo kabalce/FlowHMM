@@ -74,10 +74,11 @@ def parse_args():
 
 
 def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
-    data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_test_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}.pkl"
+    data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_valid_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}.pkl"
     if Path(data_path).exists():
         with open(data_path, 'rb') as f:
             data = pkl.load(f)
+        myHMM.nodes = data['myHMM.nodes']
         return (
             data['Xd_train'],
             data['Xd_test'],
@@ -124,13 +125,12 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                 ).reshape(-1, 1)
                 for line in f.readlines()
             ]
-            ic(len(Xd))
             subsample_size = 100000
             indexes = np.random.choice(
                 len(Xd), size=int(subsample_size * 1.1), replace=False
             )
-            ic(indexes.shape)
             f.seek(0)
+            indexes_l = indexes.tolist()
             Xc = [
                 np.concatenate(
                     [
@@ -139,9 +139,8 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
                     ]
                 )
                 for i, line in enumerate(f)
-                if i in indexes.tolist()
+                if i in indexes_l
             ]
-            ic(len(Xc))
 
         Xd_train = [Xd[i] for i in range(len(Xd)) if i not in indexes[subsample_size:]]
         Xd_test = [Xd[i] for i in indexes[subsample_size:]]
@@ -166,7 +165,7 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
             'lengths_train': lengths_train,
             'lengths_sub_train': lengths_sub_train,
             'lengths_test': lengths_test,
-            'myHMM.nodes': lengths_test
+            'myHMM.nodes': myHMM.nodes
         }
 
         with open(data_path, 'wb') as f:
@@ -226,6 +225,8 @@ if __name__ == "__main__":
     logging.debug(
         f"Mean loglikelihood from my implementation on test set: {myHMM.score(Xc_test, lengths_test) / Xc_test.shape[0]}"
     )
+
+    # TODO: extend evaluation
 
     standardHMM.fit(Xc_train, lengths_sub_train)
 

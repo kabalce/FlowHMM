@@ -1,6 +1,7 @@
 import argparse
 import pickle as pkl
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import os
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ sys.path.insert(1, PROJECT_PATH)
 from clickstream_experiment.source.clickstream import ClickStream
 
 
-DATA_SET = "train"
+DATA_SET = "test"
 logging.basicConfig(
     filename=f"{PROJECT_PATH}/clickstream_experiment/logs/preprocessing.log",
     encoding="utf-8",
@@ -98,6 +99,45 @@ def prepare_file_for_w2v(click_stream, w2v_min_len):
         ]
 
 
+def prepare_df_for_tagnn(click_stream, w2v_min_len):
+    with open(
+        f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_df_{w2v_min_len}_{DATA_SET}.dat",
+        "w",
+    ) as f:
+        [   # 'sessionID', 'timestamp', 'itemID', 'category'
+            f.write(f"{s.session_id} {e.ts} {e.item_id} {e.type}" + "\n")
+            for s in click_stream.sessions
+            for e in s.event_list
+            if len(s.event_list) >= w2v_min_len
+        ]
+
+
+def prepare_file_for_tagnn(click_stream, w2v_min_len):
+    l_ = len(click_stream.sessions)
+    indexes = np.random.choice(l_, size=l_ // 8, replace=False)
+
+    data = (
+        [
+            s.list_items()[:-1]
+            for i, s in enumerate(click_stream.sessions)
+            if (len(s.event_list) >= w2v_min_len) and (i in indexes)
+        ],
+        [
+            s.list_items()[-1]
+            for i, s in enumerate(click_stream.sessions)
+            if (len(s.event_list) >= w2v_min_len) and (i in indexes)
+        ]
+    )
+
+    tagnn_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_seq_{w2v_min_len}_{DATA_SET}.pkl"
+
+    with open(
+            tagnn_path,
+            "wb",
+    ) as f:
+        pkl.dump(data, f)
+
+
 def train_w2v(w2v_dim, w2v_epochs, w2v_min_len):
     w2v_model = Word2Vec(
         sentences=LineSentence(
@@ -120,27 +160,32 @@ if __name__ == "__main__":
 
     cs_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/ClickStream_{DATA_SET}.pkl"
     w2v_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/sequences_{w2v_min_len}.txt"
-    if not os.path.exists(w2v_path):
-        if os.path.exists(cs_path):
-            with open(
-                cs_path,
-                "rb",
-            ) as f:
-                cs = pkl.load(f)
-        else:
-            cs = load_raw_clickstream()
+    tagnn_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_seq_{w2v_min_len}_{DATA_SET}.pkl"
+    tagnn_df_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_df_{w2v_min_len}_{DATA_SET}.dat"
 
-        # analyze_clickstream(cs)
+    for path, prepare_file_fun in zip([w2v_path, tagnn_path, tagnn_df_path],
+                                      [prepare_file_for_w2v, prepare_file_for_tagnn, prepare_df_for_tagnn]):
+        if not os.path.exists(path):
+            if os.path.exists(cs_path):
+                with open(
+                    cs_path,
+                    "rb",
+                ) as f:
+                    cs = pkl.load(f)
+            else:
+                cs = load_raw_clickstream()
 
-        """
-        Number of sessions in train set: 12899779
-        Number of products in train set: 1855603
-        Average session length in train set: 16.799985178040647
-        """
+            # analyze_clickstream(cs)
 
-        logging.info("ClickStream loaded.")
-        prepare_file_for_w2v(cs, w2v_min_len)
-        logging.info("Data for word2vec written to file.")
-        del cs
+            """
+            Number of sessions in train set: 12899779
+            Number of products in train set: 1855603
+            Average session length in train set: 16.799985178040647
+            """
 
-    train_w2v(w2v_dim, w2v_epochs, w2v_min_len)
+            logging.info("ClickStream loaded.")
+            prepare_file_fun(cs, w2v_min_len)
+            logging.info("Data for word2vec written to file.")
+            del cs
+
+    # train_w2v(w2v_dim, w2v_epochs, w2v_min_len)
