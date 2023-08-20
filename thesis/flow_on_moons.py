@@ -132,7 +132,7 @@ if __name__ == "__main__":
         for n in grid_sizes[-1:]:
             model = init_model(discretize_meth, X_train, n)
 
-            for max_epoch, lr in itertools.product([1000],  [0.01]):
+            for max_epoch, lr, lambda_ in itertools.product([1000],  [0.01], [0, 1]):
 
                 for _ in tqdm(range(1)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = None
@@ -158,13 +158,13 @@ if __name__ == "__main__":
 
                     for i in range(50):
                         plot_HMM3(X_test, model,
-                                  path=f"{results_path}/flow_on_moons_{i}.png")
+                                  path=f"{results_path}/flow_on_moons_{i}_penalty={lambda_}.png")
                         plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)),
-                                f"{results_path}/Q_moons_{i}.png")
+                                f"{results_path}/Q_moons_{i}_penalty={lambda_}.png")
                         results.append(
                             score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)),
-                                        dict(i=i * 20)))
-                        model.fit(X_train)
+                                        dict(i=i * 20, penalty=lambda_)))
+                        model.fit(X_train, lambda_=lambda_)
 
                     wandb.finish()
 
