@@ -153,7 +153,7 @@ class FlowHmmOptim(torch.nn.Module):
         return log_px
 
     def emission_matrix(self, nodes):
-        B = torch.cat(
+        B_ = torch.cat(
                 [
                     torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
                         1, -1
@@ -162,23 +162,23 @@ class FlowHmmOptim(torch.nn.Module):
                 ],
                 dim=0,
             )
-        B[B <= 1e-10] += 1e-10
+        B_[B_ <= 1e-10] += 1e-10  # TODO: try removing with the penalty on board
         B = torch.nn.functional.normalize(
-            B,
+            B_,
             dim=1, p=1
         ).double()
-        return B
+        return B, B_.sum(dim=1)
     def forward(self, nodes):
         """
         Calculate the forward pass of the torch.nn.Module
         :return: cooc matrix from current parameters
         """
 
-        B = self.emission_matrix(nodes)
+        B, B_sums = self.emission_matrix(nodes)
 
         S_ = torch.exp(self._S_unconstrained).double()
         S = S_ / S_.sum()
-        return (B.transpose(1, 0) @ S @ B).float()
+        return (B.transpose(1, 0) @ S @ B).float(), B_sums
 
     @staticmethod
     def _to_numpy(tens: torch.tensor):
@@ -203,7 +203,7 @@ class FlowHmmOptim(torch.nn.Module):
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
-        emissionprob = self.emission_matrix(nodes)
+        emissionprob, _ = self.emission_matrix(nodes)
 
         return (
             self._to_numpy(emissionprob),
@@ -532,7 +532,8 @@ class FlowHMM(hmm.CategoricalHMM):
         Xc: Optional[npt.NDArray],
         lengthsd: Optional[npt.NDArray[int]] = None,
         lengthsc: Optional[npt.NDArray[int]] = None,
-        early_stopping: bool = False
+        early_stopping: bool = False,
+            lambda_: float = 0
     ):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         """
@@ -558,9 +559,10 @@ class FlowHMM(hmm.CategoricalHMM):
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
+            Q_hat, probs_sums = self.model(nodes_tensor)
             loss = torch.nn.KLDivLoss(reduction="sum")(
-                torch.log(self.model(nodes_tensor)), cooc_matrix
-            )
+                torch.log(Q_hat), cooc_matrix
+            ) + lambda_ * probs_sums.sum() / self.n_components
             loss.backward()
             optimizer.step()
             if i % 100 == 0:  # TODO: think of it...
@@ -614,7 +616,8 @@ class FlowHMM(hmm.CategoricalHMM):
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
 
-        early_stopping: bool = False
+        early_stopping: bool = False,
+        lambda_=0
     ):
         # TODO: fix docstrings
         """
@@ -635,7 +638,7 @@ class FlowHMM(hmm.CategoricalHMM):
         elif self.learning_alg == "em_dense":
             self._fit_em_dense(X, lengths_d)
         elif self.learning_alg == "cooc":
-            self._fit_cooc(Xd, X, lengths_d, lengths, early_stopping)
+            self._fit_cooc(Xd, X, lengths_d, lengths, early_stopping, lambda_)
         else:
             _log.error(
                 f"Learning algorithm {self.learning_alg} is not implemented. Select one of: {LEARNING_ALGORITHMS}"
