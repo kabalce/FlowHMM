@@ -551,7 +551,7 @@ class FlowHMM(hmm.CategoricalHMM):
         self.model.stds = self.model.stds.to(device)
 
         cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
-        run = self.optim_params.pop('run') if 'run' in  self.optim_params.keys() else None
+        run = self.optim_params.pop('run') if 'run' in self.optim_params.keys() else None
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         nodes_tensor = torch.Tensor(self.nodes.T).to(device)
         
