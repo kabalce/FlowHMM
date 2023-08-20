@@ -562,7 +562,7 @@ class FlowHMM(hmm.CategoricalHMM):
             Q_hat, probs_sums = self.model(nodes_tensor)
             loss = torch.nn.KLDivLoss(reduction="sum")(
                 torch.log(Q_hat), cooc_matrix
-            ) + lambda_ * probs_sums.sum() / self.n_components
+            ) - lambda_ * probs_sums.sum() / self.n_components
             loss.backward()
             optimizer.step()
             if i % 100 == 0:  # TODO: think of it...
