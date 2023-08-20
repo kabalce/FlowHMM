@@ -129,7 +129,7 @@ def plot_HMM3(X, model, path=None):
     XX, YY = np.meshgrid(np.linspace(x1, x2, 100), np.linspace(y1, y2, 100))
     data = np.column_stack((XX.ravel(), YY.ravel()))
     # TODO: transformuj dane data siecią
-    lls = model.model.emission_matrix(torch.Tensor(data).to(model.model.device)).cpu().detach().numpy()
+    lls = model.model.emission_matrix(torch.Tensor(data).to(model.model.device))[0].cpu().detach().numpy()
 
     plt.figure(figsize=(5, 5))
     plt.scatter(X[:, 0], X[:, 1], color='grey', alpha=0.1)
