@@ -15,6 +15,7 @@ from scipy.stats import multivariate_normal
 
 from ssm.util import find_permutation
 from pathlib import Path
+import torch
 from hmmlearn import hmm
 
 from theoretical_experiment.visual_tools import plot_HMM2, plot_Qs, plot_metric, plot_HMM3
@@ -136,13 +137,13 @@ if __name__ == "__main__":
 
                 for _ in tqdm(range(1)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = None
-                    run = wandb.init(
-                       project=wandb_project_name,
-                       name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
-                       notes="FlowHMM with co-occurrence-based learning schema logger",
-                       dir=f'{PROJECT_PATH}/'
-                    )
-                    wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
+                    # run = wandb.init(
+                    #    project=wandb_project_name,
+                    #    name=f"ex_2_{discretize_meth}_{n}_{max_epoch}_{lr}",
+                    #    notes="FlowHMM with co-occurrence-based learning schema logger",
+                    #    dir=f'{PROJECT_PATH}/'
+                    # )
+                    # wandb.config = dict(max_epoch=max_epoch, lr=lr, weight_decay=0, disc=discretize_meth, n=n)
                     model = FlowHMM(
                         discretization_method=discretize_meth,
                         no_nodes=n,
@@ -151,10 +152,28 @@ if __name__ == "__main__":
                         verbose=True,
                         params="ste",
                         init_params="ste",
-                        optim_params=dict(max_epoch=20, lr=lr, weight_decay=0, run=run),
+                        optim_params=dict(max_epoch=10, lr=lr, weight_decay=0, run=run),
                         n_iter=100,
                         optimizer="Adam",
                     )
+
+                    Xd = model.discretize(X_train, False)
+                    lengths_d = None
+                    super(type(model), model)._init(Xd)
+                    model._init(X_train, None)
+
+                    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                    model.model.to(device)
+                    model.model.device = device
+                    model.model.means = model.model.means.to(device)  # could be nicer...
+                    model.model.stds = model.model.stds.to(device)
+
+                    cooc_matrix = torch.tensor(model._cooccurence(Xd, None)).to(device).requires_grad_(False)
+                    run = model.optim_params.pop('run') if 'run' in model.optim_params.keys() else None
+                    optimizer = model.optimizer(model.model.parameters(), **model.optim_params)
+                    nodes_tensor = torch.tensor(model.nodes.T.copy()).float().to(device).requires_grad_(False)
+
+                    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
                     for i in range(50):
                         plot_HMM3(X_test, model,
@@ -164,9 +183,56 @@ if __name__ == "__main__":
                         results.append(
                             score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)),
                                         dict(i=i * 20, penalty=lambda_)))
-                        model.fit(X_train, lambda_=lambda_)
+                        for i in range(model.max_epoch):
+                            optimizer.zero_grad()
+                            Q_hat, probs_sums = model.model(nodes_tensor)
+                            loss = torch.nn.KLDivLoss(reduction="sum")(
+                                torch.log(Q_hat), cooc_matrix
+                            ) - lambda_ * probs_sums.sum() / model.n_components
+                            loss.backward()
+                            optimizer.step()
+                            if i % 100 == 0:  # TODO: think of it...
+                                (
+                                    _,
+                                    model.transmat_,
+                                    model.startprob_,
+                                ) = model.model.get_model_params(nodes_tensor)
 
-                    wandb.finish()
+                                if run is not None:
+                                    run.log({"score": model.score(X_train, None), "loss": loss.cpu().detach()})
+                                else:
+                                    print({"score": model.score(X_train, None), "loss": loss.cpu().detach()})
+
+                            elif i % 1000 == 999:  # TODO: select properly
+                                (
+                                    _,
+                                    model.transmat_,
+                                    model.startprob_,
+                                ) = model.model.get_model_params(nodes_tensor)
+
+                                scheduler.step()
+                                if X_train is not None:
+                                    score = model.score(Xd.reshape(-1, 1), None)
+                                    model.monitor_.report(score)
+                                    if (
+                                            False and
+                                            model.monitor_.converged
+                                    ):  # TODO: monitor convergence from torch training
+                                        break
+
+
+
+                    i+=1
+
+                    plot_HMM3(X_test, model,
+                              path=f"{results_path}/flow_on_moons_{i}_penalty={lambda_}.png")
+                    # plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)),
+                    #         f"{results_path}/Q_moons_{i}_penalty={lambda_}.png")
+                    results.append(
+                        score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)),
+                                    dict(i=i * 20, penalty=lambda_)))
+
+                    # wandb.finish()
 
 
 
