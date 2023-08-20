@@ -169,7 +169,7 @@ if __name__ == "__main__":
         for n in grid_sizes:
             model = init_model(discretize_meth, X_train, n)
 
-            for max_epoch, lr in itertools.product([100, 200],  [0.001, 0.003, 0.01])):
+            for max_epoch, lr in itertools.product([100, 200],  [0.001, 0.003, 0.01]):
 
                 for _ in tqdm(range(1)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = None
