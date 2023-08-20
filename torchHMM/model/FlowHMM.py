@@ -136,11 +136,11 @@ class FlowHmmOptim(torch.nn.Module):
         )
 
         self.NFs = torch.nn.ModuleList([build_model_tabular(Args(args), n_dim) for _ in range(n_components)])
-        self.means = torch.tensor(means).double()  #.to(self.device)
-        self.stds = torch.tensor(stds).double()  #.to(self.device)
+        self.means = torch.tensor(means).double().requires_grad_(False)  #.to(self.device)
+        self.stds = torch.tensor(stds).double().requires_grad_(False)  #.to(self.device)
 
     def emission_score(self, cnf, nodes, mean, std):
-        y, delta_log_py = cnf(((nodes - mean) / std).float().to(nodes), torch.zeros(nodes.size(0), 1).to(nodes))
+        y, delta_log_py = cnf(((nodes.clone() - mean) / std).double().to(nodes), torch.zeros(nodes.size(0), 1).to(nodes))
         if y.isnan().sum():
             try:
                 y[y.isnan()] = y[~y.isnan()].mean()
@@ -178,7 +178,7 @@ class FlowHmmOptim(torch.nn.Module):
 
         S_ = torch.exp(self._S_unconstrained).double()
         S = S_ / S_.sum()
-        return (B.transpose(1, 0) @ S @ B).float(), B_sums
+        return (B.transpose(1, 0) @ S @ B).double(), B_sums
 
     @staticmethod
     def _to_numpy(tens: torch.tensor):
@@ -551,10 +551,10 @@ class FlowHMM(hmm.CategoricalHMM):
         self.model.means = self.model.means.to(device)  # could be nicer...
         self.model.stds = self.model.stds.to(device)
 
-        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
+        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device).requires_grad_(False)
         run = self.optim_params.pop('run') if 'run' in self.optim_params.keys() else None
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
-        nodes_tensor = torch.Tensor(self.nodes.T).to(device)
+        nodes_tensor = torch.tensor(self.nodes.T.copy()).float().to(device).requires_grad_(False)
         
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
@@ -651,7 +651,7 @@ class FlowHMM(hmm.CategoricalHMM):
     def _compute_log_likelihood(self, X):
         return np.concatenate([
             self.model.emission_score(self.model.NFs[i],
-                                       torch.Tensor(X).to(self.model.device),
+                                       torch.tensor(X).to(self.model.device).float().requires_grad_(False),
                                        self.model.means[i],
                                        self.model.stds[i]).cpu().detach().numpy().reshape(-1, 1) for i in range(self.n_components)], axis=1)
 
