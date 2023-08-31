@@ -76,17 +76,17 @@ def parse_args():
 def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
     data_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/train_valid_data_{w2v_dim}_{w2v_epochs}_{w2v_min_len}.pkl"
     if Path(data_path).exists():
-        with open(data_path, 'rb') as f:
+        with open(data_path, "rb") as f:
             data = pkl.load(f)
-        myHMM.nodes = data['myHMM.nodes']
+        myHMM.nodes = data["myHMM.nodes"]
         return (
-            data['Xd_train'],
-            data['Xd_test'],
-            data['Xc_train'],
-            data['Xc_test'],
-            data['lengths_train'],
-            data['lengths_sub_train'],
-            data['lengths_test'],
+            data["Xd_train"],
+            data["Xd_test"],
+            data["Xc_train"],
+            data["Xc_test"],
+            data["lengths_train"],
+            data["lengths_sub_train"],
+            data["lengths_test"],
         )
     else:
         vectors = KeyedVectors.load(
@@ -158,17 +158,17 @@ def discretize_data(myHMM, w2v_dim, w2v_epochs, w2v_min_len):
         Xc_test = np.concatenate(Xc_test)
 
         results = {
-            'Xd_train': Xd_train,
-            'Xd_test': Xd_test,
-            'Xc_train': Xc_train,
-            'Xc_test': Xc_test,
-            'lengths_train': lengths_train,
-            'lengths_sub_train': lengths_sub_train,
-            'lengths_test': lengths_test,
-            'myHMM.nodes': myHMM.nodes
+            "Xd_train": Xd_train,
+            "Xd_test": Xd_test,
+            "Xc_train": Xc_train,
+            "Xc_test": Xc_test,
+            "lengths_train": lengths_train,
+            "lengths_sub_train": lengths_sub_train,
+            "lengths_test": lengths_test,
+            "myHMM.nodes": myHMM.nodes,
         }
 
-        with open(data_path, 'wb') as f:
+        with open(data_path, "wb") as f:
             pkl.dump(results, f)
 
         return (

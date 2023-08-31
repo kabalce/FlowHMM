@@ -24,16 +24,31 @@ import wandb
 # torch model with embeddings in separate class
 
 
-
-DISCRETIZATION_TECHNIQUES = ["grid", "random", "latin_cube_u", "latin_cube_q", "uniform", "sobol",  "halton"]
+DISCRETIZATION_TECHNIQUES = [
+    "grid",
+    "random",
+    "latin_cube_u",
+    "latin_cube_q",
+    "uniform",
+    "sobol",
+    "halton",
+]
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ["em", "em_dense", "cooc"]
 
 
-class Args():
-    def __init__(self,  args_dict):
+class Args:
+    def __init__(self, args_dict):
 
-        NONLINEARITIES = ["tanh", "relu", "softplus", "elu", "swish", "square", "identity"]
+        NONLINEARITIES = [
+            "tanh",
+            "relu",
+            "softplus",
+            "elu",
+            "swish",
+            "square",
+            "identity",
+        ]
         SOLVERS = [
             "dopri5",
             "bdf",
@@ -55,49 +70,50 @@ class Args():
         ]
         self.args_dict = args_dict
 
-        self.seed = self.set_value('seed',  2023)
-        self.lrate = self.set_value('lrate', 0.01)
-        self.layer_type = self.set_value('layer_type', "concatsquash")
-        self.dims = self.set_value('dims', "16-16")
+        self.seed = self.set_value("seed", 2023)
+        self.lrate = self.set_value("lrate", 0.01)
+        self.layer_type = self.set_value("layer_type", "concatsquash")
+        self.dims = self.set_value("dims", "16-16")
         self.num_blocks = self.set_value("num_blocks", 2)
-        self.time_length = self.set_value('time_length', 0.5)
-        self.train_T = self.set_value('train_T', True)
-        self.add_noise = self.set_value('add_noise', False)
-        self.noise_var = self.set_value('noise_var',  0.1)
-        self.divergence_fn = self.set_value('divergence_fn', "brute_force")
+        self.time_length = self.set_value("time_length", 0.5)
+        self.train_T = self.set_value("train_T", True)
+        self.add_noise = self.set_value("add_noise", False)
+        self.noise_var = self.set_value("noise_var", 0.1)
+        self.divergence_fn = self.set_value("divergence_fn", "brute_force")
         self.nonlinearity = self.set_value("nonlinearity", "tanh")
-        self.solver = self.set_value('solver', "dopri5")
-        self.atol = self.set_value('atol', 1e-5)
-        self.rtol = self.set_value('atol', 1e-5)
-        self.step_size = self.set_value('step_size', None)
-        self.test_solver = self.set_value('test_solver', None)
-        self.test_atol = self.set_value('test_atol', None)
-        self.test_rtol = self.set_value('test_rtol', None)
-        self.residual = self.set_value('residual', False)
-        self.rademacher = self.set_value('rademacher', False)
-        self.spectral_norm = self.set_value('spectral_norm', False)
-        self.batch_norm = self.set_value('batch_norm', True)
-        self.bn_lag = self.set_value('bn_lag', 0)
-        self.max_shape = self.set_value('max_shape', 1000)
+        self.solver = self.set_value("solver", "dopri5")
+        self.atol = self.set_value("atol", 1e-5)
+        self.rtol = self.set_value("atol", 1e-5)
+        self.step_size = self.set_value("step_size", None)
+        self.test_solver = self.set_value("test_solver", None)
+        self.test_atol = self.set_value("test_atol", None)
+        self.test_rtol = self.set_value("test_rtol", None)
+        self.residual = self.set_value("residual", False)
+        self.rademacher = self.set_value("rademacher", False)
+        self.spectral_norm = self.set_value("spectral_norm", False)
+        self.batch_norm = self.set_value("batch_norm", True)
+        self.bn_lag = self.set_value("bn_lag", 0)
+        self.max_shape = self.set_value("max_shape", 1000)
 
     def set_value(self, key, default_val):
         if key in self.args_dict.keys():
             return self.args_dict[key]
-        else: return default_val
+        else:
+            return default_val
+
 
 class FlowHmmOptim(torch.nn.Module):
     def __init__(
         self,
         n_components: int,
         n_dim: int,
-            means,
-            stds,
+        means,
+        stds,
         startprob_: Optional[npt.NDArray] = None,
         transmat_: Optional[npt.NDArray] = None,  # Initial values
         trainable: str = "",
         trans_from: str = "S",
-        args = dict(),
-
+        args=dict(),
     ):
         """
         Initialize torch.nn.Module for HMM parameters estimation
@@ -132,15 +148,25 @@ class FlowHmmOptim(torch.nn.Module):
         self.trainable = trainable
 
         self._S_unconstrained = torch.nn.Parameter(
-            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable
+            torch.tensor(np.log(transmat * startprob[:, np.newaxis])),
+            requires_grad="t" in trainable,
         )
 
-        self.NFs = torch.nn.ModuleList([build_model_tabular(Args(args), n_dim) for _ in range(n_components)])
-        self.means = torch.tensor(means).double()  #.to(self.device)
-        self.stds = torch.tensor(stds).double()  #.to(self.device)
+        self.NFs = torch.nn.ModuleList(
+            [build_model_tabular(Args(args), n_dim) for _ in range(n_components)]
+        )
+        self.means = (
+            torch.tensor(means).double().requires_grad_(False)
+        )  # .to(self.device)
+        self.stds = (
+            torch.tensor(stds).double().requires_grad_(False)
+        )  # .to(self.device)
 
     def emission_score(self, cnf, nodes, mean, std):
-        y, delta_log_py = cnf(((nodes - mean) / std).float().to(nodes), torch.zeros(nodes.size(0), 1).to(nodes))
+        y, delta_log_py = cnf(
+            ((nodes.clone() - mean) / std).double().to(nodes),
+            torch.zeros(nodes.size(0), 1).to(nodes),
+        )
         if y.isnan().sum():
             try:
                 y[y.isnan()] = y[~y.isnan()].mean()
@@ -154,20 +180,18 @@ class FlowHmmOptim(torch.nn.Module):
 
     def emission_matrix(self, nodes):
         B_ = torch.cat(
-                [
-                    torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
-                        1, -1
-                    )
-                    for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
-                ],
-                dim=0,
-            )
+            [
+                torch.exp(self.emission_score(dist_model, nodes, means, stds)).reshape(
+                    1, -1
+                )
+                for dist_model, means, stds in zip(self.NFs, self.means, self.stds)
+            ],
+            dim=0,
+        )
         B_[B_ <= 1e-10] += 1e-10  # TODO: try removing with the penalty on board
-        B = torch.nn.functional.normalize(
-            B_,
-            dim=1, p=1
-        ).double()
+        B = torch.nn.functional.normalize(B_, dim=1, p=1).double()
         return B, B_.sum(dim=1)
+
     def forward(self, nodes):
         """
         Calculate the forward pass of the torch.nn.Module
@@ -178,7 +202,7 @@ class FlowHmmOptim(torch.nn.Module):
 
         S_ = torch.exp(self._S_unconstrained).double()
         S = S_ / S_.sum()
-        return (B.transpose(1, 0) @ S @ B).float(), B_sums
+        return (B.transpose(1, 0) @ S @ B).double(), B_sums
 
     @staticmethod
     def _to_numpy(tens: torch.tensor):
@@ -187,7 +211,9 @@ class FlowHmmOptim(torch.nn.Module):
         :param tens: torch tensor (or parameter)
         :return: numpy array
         """
-        return tens.clone().numpy(force=True) #.clone().cpu().detach().numpy()  # TODO: check if it will be working in all cases
+        return tens.clone().numpy(
+            force=True
+        )  # .clone().cpu().detach().numpy()  # TODO: check if it will be working in all cases
 
     def get_model_params(self, nodes):
         """
@@ -196,7 +222,7 @@ class FlowHmmOptim(torch.nn.Module):
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
         S_ = torch.exp(self._S_unconstrained)
-        S = S_ /S_.sum()
+        S = S_ / S_.sum()
         if S.sum() == 0:
             S = torch.ones(S.shape)
             S = S / S.sum(axis=1).view(-1, 1)
@@ -212,7 +238,7 @@ class FlowHmmOptim(torch.nn.Module):
         )
 
 
-class FlowHMM(hmm.CategoricalHMM):
+class FlowHMM(hmm.GaussianHMM):
     def __init__(
         self,
         discretization_method: str = "random",
@@ -224,16 +250,14 @@ class FlowHMM(hmm.CategoricalHMM):
         transmat_prior: float = 1.0,
         optim_params: Optional[str] = None,
         optimizer: str = "SGD",
-
         algorithm: str = "viterbi",
         random_state: int = None,
         n_iter: int = 10,
         tol: float = 0.01,
         verbose: bool = False,
-        params: str = "te",  # TODO: default without 's'
-        init_params: str = "te",
+        params: str = "tmc",  # TODO: default without 's'
+        init_params: str = "tmc",
         implementation: str = "log",
-
         means=None,
         stds=None,
     ) -> None:
@@ -295,11 +319,18 @@ class FlowHMM(hmm.CategoricalHMM):
         maxs = X.max(axis=0)
         dims = [1]
         for i in range(X.shape[1]):
-            dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
+            dims.append(
+                int(
+                    (self.no_nodes / np.prod(dims[: (i + 1)])) ** (1 / (X.shape[1] - i))
+                )
+            )
         grids = [np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])]
-        self.nodes = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])]).T
-        
-
+        self.nodes = np.vstack(
+            [
+                np.array([grids[d][ind[d]] for d in range(X.shape[1])])
+                for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])
+            ]
+        ).T
 
     def _provide_nodes_random(self, X: npt.NDArray):
         """
@@ -318,7 +349,7 @@ class FlowHMM(hmm.CategoricalHMM):
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = np.apply_along_axis(
-            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes):]),
+            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes) :]),
             0,
             np.concatenate(
                 [X, qmc.LatinHypercube(X.shape[1]).random(self.no_nodes)],
@@ -378,6 +409,7 @@ class FlowHMM(hmm.CategoricalHMM):
         :param X: Original, continuous (gaussian) data
         :param force: If nodes should be updated, when they have been previously specified
         """
+
         if not force and (self.nodes is not None):
             if self.verbose:
                 print("Nodes have been already set. Use force=True to update them")
@@ -396,7 +428,19 @@ class FlowHMM(hmm.CategoricalHMM):
             self._provide_nodes_halton(X)
         else:
             self._provide_nodes_uniform(X)
-        self.n_features = self.nodes.shape[1]
+        mins = X.min(axis=0) - (X.max(axis=0) - X.min(axis=0)) * 0.05
+        maxs = X.max(axis=0) + (X.max(axis=0) - X.min(axis=0)) * 0.05
+        grids = [np.linspace(mins[i], maxs[i], 2) for i in range(X.shape[1])]
+        frame = np.vstack(
+            [
+                np.array([grids[d][ind[d]] for d in range(X.shape[1])])
+                for ind in itertools.product(
+                    *[[i for i in range(2)] for r in range(X.shape[1])]
+                )
+            ]
+        ).T
+
+        self.nodes = np.concatenate([frame, self.nodes], axis=1)
 
     def discretize(self, X: npt.NDArray, force: bool):
         """
@@ -409,13 +453,19 @@ class FlowHMM(hmm.CategoricalHMM):
         res = np.array([])
         batchsize = 1000
         for i in range((X.shape[0] // batchsize) + 1):
-            res = np.concatenate([res, np.argmin(  # TODO:  fix this!
-                np.square(X[(i * batchsize):((i + 1) * batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(
-                    axis=1),
-                axis=1,
-            ).reshape(-1)]).astype(int)
+            res = np.concatenate(
+                [
+                    res,
+                    np.argmin(  # TODO:  fix this!
+                        np.square(
+                            X[(i * batchsize) : ((i + 1) * batchsize), :, np.newaxis]
+                            - self.nodes[np.newaxis, :, :]
+                        ).sum(axis=1),
+                        axis=1,
+                    ).reshape(-1),
+                ]
+            ).astype(int)
         return res
-
 
     def _needs_init(self, code: str, name: str, torch_check: bool = False):
         """
@@ -466,7 +516,7 @@ class FlowHMM(hmm.CategoricalHMM):
         :param lengths: Lengths of individual sequences in X
         """
         # init k-means with a batch of data (of some maximum size)?
-        super()._init(self.discretize(X, False).reshape(-1, 1))
+        super()._init(X)
         for e in ["z", "u"]:
             if self._needs_init(e, f"{e}_"):
                 setattr(
@@ -489,8 +539,16 @@ class FlowHMM(hmm.CategoricalHMM):
         #     torch_inits["u_"] = self.u_
         torch_inits["startprob_"] = self.startprob_
         torch_inits["transmat_"] = self.transmat_
-        torch_inits["means"] = self.means if self.means is not None else np.zeros((self.n_components, X.shape[1]))
-        torch_inits["stds"] = self.stds if self.stds is not None else np.ones((self.n_components, X.shape[1]))
+        torch_inits["means"] = (
+            self.means
+            if self.means is not None
+            else np.zeros((self.n_components, X.shape[1]))
+        )
+        torch_inits["stds"] = (
+            self.stds
+            if self.stds is not None
+            else np.ones((self.n_components, X.shape[1]))
+        )
 
         if self.learning_alg == "cooc":
             self.model = FlowHmmOptim(**torch_inits)
@@ -533,9 +591,9 @@ class FlowHMM(hmm.CategoricalHMM):
         lengthsd: Optional[npt.NDArray[int]] = None,
         lengthsc: Optional[npt.NDArray[int]] = None,
         early_stopping: bool = False,
-            lambda_: float = 0
+        lambda_: float = 0,
     ):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
         :param Xd: Disretized data (represented as cluster indexes)
@@ -551,18 +609,26 @@ class FlowHMM(hmm.CategoricalHMM):
         self.model.means = self.model.means.to(device)  # could be nicer...
         self.model.stds = self.model.stds.to(device)
 
-        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
-        run = self.optim_params.pop('run') if 'run' in self.optim_params.keys() else None
+        cooc_matrix = (
+            torch.tensor(self._cooccurence(Xd, lengthsd))
+            .to(device)
+            .requires_grad_(False)
+        )
+        run = (
+            self.optim_params.pop("run") if "run" in self.optim_params.keys() else None
+        )
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
-        nodes_tensor = torch.Tensor(self.nodes.T).to(device)
-        
+        nodes_tensor = (
+            torch.tensor(self.nodes.T.copy()).float().to(device).requires_grad_(False)
+        )
+
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
             Q_hat, probs_sums = self.model(nodes_tensor)
             loss = torch.nn.KLDivLoss(reduction="sum")(
                 torch.log(Q_hat), cooc_matrix
-            ) - lambda_ * probs_sums.sum() / self.n_components
+            ) - lambda_ * probs_sums.mean() * 0.9 ** (i + 1)
             loss.backward()
             optimizer.step()
             if i % 100 == 0:  # TODO: think of it...
@@ -573,9 +639,13 @@ class FlowHMM(hmm.CategoricalHMM):
                 ) = self.model.get_model_params(nodes_tensor)
 
                 if run is not None:
-                    run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
+                    run.log(
+                        {"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()}
+                    )
                 else:
-                    print({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
+                    print(
+                        {"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()}
+                    )
 
             elif i % 1000 == 999:  # TODO: select properly
                 (
@@ -589,8 +659,7 @@ class FlowHMM(hmm.CategoricalHMM):
                     score = self.score(Xd.reshape(-1, 1), lengthsd)
                     self.monitor_.report(score)
                     if (
-                        early_stopping and
-                        self.monitor_.converged
+                        early_stopping and self.monitor_.converged
                     ):  # TODO: monitor convergence from torch training
                         break
         try:
@@ -615,9 +684,8 @@ class FlowHMM(hmm.CategoricalHMM):
         Xd: Optional[npt.NDArray] = None,
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
-
         early_stopping: bool = False,
-        lambda_=0
+        lambda_=0,
     ):
         # TODO: fix docstrings
         """
@@ -631,7 +699,7 @@ class FlowHMM(hmm.CategoricalHMM):
         if Xd is None:
             Xd = self.discretize(X, update_nodes)
             lengths_d = lengths
-        super()._init(Xd)
+        super()._init(X)
         self._init(X, lengths)
         if self.learning_alg == "em":
             super().fit(self.nodes.T[Xd], lengths_d)
@@ -649,16 +717,26 @@ class FlowHMM(hmm.CategoricalHMM):
         return super().score(X, lengths)
 
     def _compute_log_likelihood(self, X):
-        return np.concatenate([
-            self.model.emission_score(self.model.NFs[i],
-                                       torch.Tensor(X).to(self.model.device),
-                                       self.model.means[i],
-                                       self.model.stds[i]).cpu().detach().numpy().reshape(-1, 1) for i in range(self.n_components)], axis=1)
+        return np.concatenate(
+            [
+                self.model.emission_score(
+                    self.model.NFs[i],
+                    torch.tensor(X).to(self.model.device).float().requires_grad_(False),
+                    self.model.means[i],
+                    self.model.stds[i],
+                )
+                .cpu()
+                .detach()
+                .numpy()
+                .reshape(-1, 1)
+                for i in range(self.n_components)
+            ],
+            axis=1,
+        )
 
     def predict(self, X, lengths=None):
         # Xd = self.discretize(X, force=False).reshape(-1, 1)
         return super().predict(X, lengths)
-
 
 
 if __name__ == "__main__":
@@ -666,9 +744,7 @@ if __name__ == "__main__":
     obs, hid = hmm.sample(100)
 
     myHMM = FlowHMM("random", 10, n_components=3, learning_alg="cooc", verbose=True)
-    myHMM2 = FlowHMM(
-        "uniform", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
+    myHMM2 = FlowHMM("uniform", 10, n_components=3, learning_alg="cooc", verbose=True)
     myHMM3 = FlowHMM(
         "latin_cube_u", 10, n_components=3, learning_alg="cooc", verbose=True
     )
@@ -676,13 +752,9 @@ if __name__ == "__main__":
         "latin_cube_q", 10, n_components=3, learning_alg="cooc", verbose=True
     )
 
-    myHMM5 = FlowHMM(
-        "sobol", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
+    myHMM5 = FlowHMM("sobol", 10, n_components=3, learning_alg="cooc", verbose=True)
 
-    myHMM6 = FlowHMM(
-        "halton", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
+    myHMM6 = FlowHMM("halton", 10, n_components=3, learning_alg="cooc", verbose=True)
 
     myHMM.fit(obs)
     print(myHMM.score(obs))

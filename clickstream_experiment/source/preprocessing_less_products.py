@@ -23,6 +23,7 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -102,7 +103,7 @@ def prepare_df_for_tagnn(click_stream, w2v_min_len):
         f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_df_{w2v_min_len}_{DATA_SET}.dat",
         "w",
     ) as f:
-        [   # 'sessionID', 'timestamp', 'itemID', 'category'
+        [  # 'sessionID', 'timestamp', 'itemID', 'category'
             f.write(f"{s.session_id} {e.ts} {e.item_id} {e.type}" + "\n")
             for s in click_stream.sessions
             for e in s.event_list
@@ -124,14 +125,14 @@ def prepare_file_for_tagnn(click_stream, w2v_min_len):
             s.list_items()[-1]
             for i, s in enumerate(click_stream.sessions)
             if (len(s.event_list) >= w2v_min_len) and (i in indexes)
-        ]
+        ],
     )
 
     tagnn_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_seq_{w2v_min_len}_{DATA_SET}.pkl"
 
     with open(
-            tagnn_path,
-            "wb",
+        tagnn_path,
+        "wb",
     ) as f:
         pkl.dump(data, f)
 
@@ -158,7 +159,12 @@ def tidy_up(cs, cs_path_cleaned):
     rare_products = set(freqs.loc[freqs < 5].index.values.tolist())
 
     # usuń rzadkie produkty z sesji
-    [setattr(s, 'event_list', [e for e in s.event_list if e.item_id not in rare_products]) for s in cs.sessions]  # list(set(s) - rare_products)
+    [
+        setattr(
+            s, "event_list", [e for e in s.event_list if e.item_id not in rare_products]
+        )
+        for s in cs.sessions
+    ]  # list(set(s) - rare_products)
 
     # usuń za krótkie sesje
     cs.sessions = [s for s in cs.sessions if len(s.event_list) > 2]
@@ -173,8 +179,8 @@ def tidy_up(cs, cs_path_cleaned):
             cs.item_ids[e.item_id] += 1
 
     with open(
-            cs_path_cleaned,
-            "wb",
+        cs_path_cleaned,
+        "wb",
     ) as f:
         pkl.dump(cs, f)
 
@@ -193,8 +199,10 @@ if __name__ == "__main__":
     tagnn_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_seq_{w2v_min_len}_{DATA_SET}_cleaned.pkl"
     tagnn_df_path = f"{PROJECT_PATH}/clickstream_experiment/data/preprocessed_data/TAGNN_df_{w2v_min_len}_{DATA_SET}_cleaned.dat"
 
-    for path, prepare_file_fun in zip([w2v_path, tagnn_path, tagnn_df_path],
-                                      [prepare_file_for_w2v, prepare_file_for_tagnn, prepare_df_for_tagnn]):
+    for path, prepare_file_fun in zip(
+        [w2v_path, tagnn_path, tagnn_df_path],
+        [prepare_file_for_w2v, prepare_file_for_tagnn, prepare_df_for_tagnn],
+    ):
         if not os.path.exists(path):
             if os.path.exists(cs_path):
                 with open(

@@ -11,6 +11,7 @@ import torch
 from typing import Optional
 from math import prod
 import itertools
+
 # Import the W&B Python Library
 import wandb
 
@@ -28,8 +29,15 @@ import wandb
 # torch model with embeddings in separate class
 
 
-
-DISCRETIZATION_TECHNIQUES = ["grid", "random", "latin_cube_u", "latin_cube_q", "uniform", "sobol",  "halton"]
+DISCRETIZATION_TECHNIQUES = [
+    "grid",
+    "random",
+    "latin_cube_u",
+    "latin_cube_q",
+    "uniform",
+    "sobol",
+    "halton",
+]
 OPTIMIZERS = dict(sgd=torch.optim.SGD, adam=torch.optim.Adam)
 LEARNING_ALGORITHMS = ["em", "em_dense", "cooc"]
 
@@ -44,6 +52,7 @@ class HmmOptim(torch.nn.Module):
         startprob_: Optional[npt.NDArray] = None,
         transmat_: Optional[npt.NDArray] = None,  # Initial values
         trainable: str = "",
+        covar_type="full",
         trans_from: str = "S",
     ):
         """
@@ -57,6 +66,9 @@ class HmmOptim(torch.nn.Module):
         :param trainable: string containing codes for parameters that need estimation
         """
         super(HmmOptim, self).__init__()
+        self.covar_type = covar_type
+        self.n_dim = n_dim
+        self.n_components = n_components
 
         # TODO: implement various covariance types (now works only for full)
 
@@ -68,15 +80,15 @@ class HmmOptim(torch.nn.Module):
             )
         )
 
-        covar_L = (
-            np.linalg.cholesky(covars_)
-            if covars_ is not None
-            else np.tril(
-                np.random.standard_normal(n_components * n_dim**2).reshape(
-                    (n_components, n_dim, n_dim)
-                )
-            )
-        )
+        # covar_L = (
+        #     np.linalg.cholesky(covars_)
+        #     if covars_ is not None
+        #     else np.tril(
+        #         np.random.exponential(1, n_components * n_dim**2).reshape(
+        #             (n_components, n_dim, n_dim)
+        #         )
+        #     )
+        # )
 
         transmat = np.abs(
             transmat_
@@ -86,7 +98,6 @@ class HmmOptim(torch.nn.Module):
             )
         )
         transmat /= transmat.sum(axis=1)[:, np.newaxis]
-
 
         startprob = np.abs(
             startprob_
@@ -101,21 +112,76 @@ class HmmOptim(torch.nn.Module):
         self._means_tensor = torch.nn.Parameter(
             torch.tensor(means), requires_grad="m" in trainable
         )
-        self._covar_L_tensor = torch.nn.Parameter(
-            torch.tensor(covar_L), requires_grad="c" in trainable
-        )  # TODO: popraw
+        # self._covar_tensor = torch.nn.Parameter(
+        #     torch.tensor(covar_L), requires_grad="c" in trainable
+        # )  # TODO: popraw
+
+        self._covar_tensor = self._init_covar("c" in trainable)
+
         self._S_unconstrained = torch.nn.Parameter(
-            torch.tensor(np.log(transmat * startprob[:, np.newaxis])), requires_grad="t" in trainable
+            torch.tensor(np.log(transmat * startprob[:, np.newaxis])),
+            requires_grad="t" in trainable,
         )
+
+    def _init_covar(
+        self, requires_grad, covars_=None
+    ):  # TODO: dodaj opcje inicjalizacji predefiniowanymi wartościami!!
+        if self.covar_type == "diag":
+            if covars_ is not None:
+                initial_value = [
+                    np.diag(c) if len(c.shape) == 2 else c for c in covars_
+                ]
+            else:
+                initial_value = (
+                    np.random.exponential(1, size=(self.n_components, self.n_dim))
+                    + 1e-2
+                )
+        else:
+            if covars_ is not None:
+                cholesky_tril = np.linalg.cholesky(covars_)
+                initial_value = []
+                [
+                    initial_value.append(y)
+                    for i in range(self.n_dim)
+                    for y in cholesky_tril[i, : (i + 1)]
+                ]
+                initial_value = np.array(initial_value)
+            else:
+                initial_value = (
+                    np.random.exponential(
+                        1,
+                        size=(self.n_components, ((self.n_dim + 1) * self.n_dim) // 2),
+                    )
+                    + 1e-2
+                )
+        initial_value = torch.tensor(initial_value)
+        return torch.nn.Parameter(initial_value, requires_grad=requires_grad)
+
+    def _get_covar(self):
+        if self.covar_type == "diag":
+            return torch.concatenate(
+                [torch.diagflat(x)[None, :, :] for x in self._covar_tensor], dim=0
+            )
+        else:
+            tril_indices = torch.tril_indices(row=self.n_dim, col=self.n_dim, offset=0)
+            res = [
+                torch.zeros((self.n_dim, self.n_dim)).double()
+                for _ in range(self.n_components)
+            ]
+            for i in range(self.n_components):
+                res[i][tril_indices[0], tril_indices[1]] = self._covar_tensor[i]
+            return torch.concatenate([(x @ x.T)[None, :, :] for x in res], dim=0)
 
     def forward(self, nodes):
         """
         Calculate the forward pass of the torch.nn.Module
         :return: cooc matrix from current parameters
         """
-        covars = torch.tril(self._covar_L_tensor) @ torch.transpose(
-            torch.tril(self._covar_L_tensor), 1, 2
-        )
+        # covars = torch.tril(self._covar_tensor + 1e-5) @ torch.transpose(
+        #     torch.tril(self._covar_tensor + 1e-5), 1, 2
+        # )
+        covars = self._get_covar()
+
         distributions = [
             torch.distributions.MultivariateNormal(self._means_tensor[i], covars[i])
             for i in range(self.n_components)
@@ -124,14 +190,13 @@ class HmmOptim(torch.nn.Module):
         B = torch.nn.functional.normalize(
             torch.cat(
                 [
-                    torch.exp(dist.log_prob(nodes)).reshape(
-                        1, -1
-                    )
+                    torch.exp(dist.log_prob(nodes)).reshape(1, -1) + torch.finfo().eps
                     for dist in distributions
                 ],
                 dim=0,
             ),
-            dim=1, p=1
+            dim=1,
+            p=1,
         )
 
         S_ = torch.exp(self._S_unconstrained)
@@ -145,7 +210,9 @@ class HmmOptim(torch.nn.Module):
         :param tens: torch tensor (or parameter)
         :return: numpy array
         """
-        return tens.clone().numpy(force=True) #.clone().cpu().detach().numpy()  # TODO: check if it will be working in all cases
+        return tens.clone().numpy(
+            force=True
+        )  # .clone().cpu().detach().numpy()  # TODO: check if it will be working in all cases
 
     def get_model_params(self):
         """
@@ -154,14 +221,14 @@ class HmmOptim(torch.nn.Module):
         """
         # TODO: https://github.com/tooploox/flowhmm/blob/main/src/flowhmm/models/fhmm.py linijka 336 - czy mi to potrzebne
         S_ = torch.exp(self._S_unconstrained)
-        S = S_ /S_.sum()
+        S = S_ / S_.sum()
         if S.sum() == 0:
             S = torch.ones(S.shape)
             S = S / S.sum(axis=1).view(-1, 1)
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
-        covars = torch.tril(self._covar_L_tensor) @ torch.transpose(torch.tril(self._covar_L_tensor), 1, 2)
+        covars = self._get_covar()
         means = self._means_tensor
         return (
             self._to_numpy(means),
@@ -200,7 +267,7 @@ class DiscreteHMM(hmm.GaussianHMM):
     ) -> None:
         super(DiscreteHMM, self).__init__(
             n_components=n_components,
-            covariance_type=covariance_type,
+            covariance_type="full",
             min_covar=min_covar,
             startprob_prior=startprob_prior,
             transmat_prior=transmat_prior,
@@ -217,6 +284,8 @@ class DiscreteHMM(hmm.GaussianHMM):
             init_params=init_params,
             implementation=implementation,
         )
+
+        self.covar_type = covariance_type
 
         assert (
             discretization_method in DISCRETIZATION_TECHNIQUES
@@ -250,7 +319,6 @@ class DiscreteHMM(hmm.GaussianHMM):
         self.l = l
         self.z_, self.u_ = None, None
 
-
     def _provide_nodes_grid(self, X: npt.NDArray):
         """
         Select random observations as nodes for discretization; nodes are saved in attribute nodes
@@ -260,11 +328,19 @@ class DiscreteHMM(hmm.GaussianHMM):
         maxs = X.max(axis=0)
         dims = [1]
         for i in range(X.shape[1]):
-            dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
+            dims.append(
+                int(
+                    (self.no_nodes / np.prod(dims[: (i + 1)])) ** (1 / (X.shape[1] - i))
+                )
+            )
 
         grids = [np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])]
-        self.nodes = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])]).T
-
+        self.nodes = np.vstack(
+            [
+                np.array([grids[d][ind[d]] for d in range(X.shape[1])])
+                for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])
+            ]
+        ).T
 
     def _provide_nodes_random(self, X: npt.NDArray):
         """
@@ -283,13 +359,14 @@ class DiscreteHMM(hmm.GaussianHMM):
         :param X: Original, continuous (gaussian) data
         """
         self.nodes = np.apply_along_axis(
-            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes):]),
+            lambda x: np.quantile(x[: (-self.no_nodes)], x[(-self.no_nodes) :]),
             0,
             np.concatenate(
                 [X, qmc.LatinHypercube(X.shape[1]).random(self.no_nodes)],
                 axis=0,
             ),
         ).T
+
     def _provide_nodes_latin_u(self, X: npt.NDArray):  # each point in a row
         """
         Provide nodes from a latin qube on cuboid of observations; nodes are saved in attribute nodes
@@ -372,12 +449,19 @@ class DiscreteHMM(hmm.GaussianHMM):
         res = np.array([])
         batchsize = 1000
         for i in range((X.shape[0] // batchsize) + 1):
-            res = np.concatenate([res, np.argmin(  # TODO:  fix this!
-                np.square(X[(i * batchsize):((i + 1) * batchsize), :, np.newaxis] - self.nodes[np.newaxis, :, :]).sum(
-                    axis=1),
-                axis=1,
-            ).reshape(-1)]).astype(int)
-        return res.reshape(-1,  1)
+            res = np.concatenate(
+                [
+                    res,
+                    np.argmin(  # TODO:  fix this!
+                        np.square(
+                            X[(i * batchsize) : ((i + 1) * batchsize), :, np.newaxis]
+                            - self.nodes[np.newaxis, :, :]
+                        ).sum(axis=1),
+                        axis=1,
+                    ).reshape(-1),
+                ]
+            ).astype(int)
+        return res.reshape(-1, 1)
 
     def _needs_init(self, code: str, name: str, torch_check: bool = False):
         """
@@ -440,7 +524,10 @@ class DiscreteHMM(hmm.GaussianHMM):
                 )
 
         torch_inits = dict(
-            n_components=self.n_components, n_dim=X.shape[1], trainable=self.params
+            n_components=self.n_components,
+            n_dim=X.shape[1],
+            trainable=self.params,
+            covar_type=self.covar_type,
         )
 
         # TODO: check if placeholders are needed
@@ -491,9 +578,9 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xc: Optional[npt.NDArray],
         lengthsd: Optional[npt.NDArray[int]] = None,
         lengthsc: Optional[npt.NDArray[int]] = None,
-        early_stopping: bool = False
+        early_stopping: bool = False,
     ):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         """
         Run co-occurrence-based learning (using torch.nn.Modul)
         :param Xd: Disretized data (represented as cluster indexes)
@@ -504,52 +591,85 @@ class DiscreteHMM(hmm.GaussianHMM):
         # TODO: loguj do convergence monitora raz na jakiś czas
         # TODO: parametrize
 
-        self.model.to(device)
-        run = self.optim_params.pop('run') if 'run' in self.optim_params.keys() else None
-        cooc_matrix = torch.tensor(self._cooccurence(Xd, lengthsd)).to(device)
+        self.model.to(device).double()
+        run = (
+            self.optim_params.pop("run") if "run" in self.optim_params.keys() else None
+        )
+        cooc_matrix = torch.tensor(
+            self._cooccurence(Xd, lengthsd), dtype=torch.double
+        ).to(device)
         optimizer = self.optimizer(self.model.parameters(), **self.optim_params)
         nodes_tensor = torch.tensor(self.nodes.T).to(device)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
         for i in range(self.max_epoch):
             optimizer.zero_grad()
             loss = torch.nn.KLDivLoss(reduction="sum")(
-                torch.log(self.model(nodes_tensor)), cooc_matrix  # if it will work, please apply also to FlowHMM!!!
+                torch.log(self.model(nodes_tensor)),
+                cooc_matrix,  # if it will work, please apply also to FlowHMM!!!
             )
             loss.backward()
             optimizer.step()
             if i % 100 == 0:
-                (
-                    self.means_,
-                    self.covars_,
-                    self.transmat_,
-                    self.startprob_,
-                ) = self.model.get_model_params()
-                scheduler.step()
+                try:
+                    (
+                        self.means_,
+                        self.covars_,
+                        self.transmat_,
+                        self.startprob_,
+                    ) = self.model.get_model_params()
+
+                except:
+                    (
+                        self.means_,
+                        cov,
+                        self.transmat_,
+                        self.startprob_,
+                    ) = self.model.get_model_params()
                 if run is not None:
-                    run.log({"score": self.score(Xc, lengthsc), "loss": loss.cpu().detach()})
+                    run.log(
+                        {
+                            "score": self.score(Xc, lengthsc),
+                            "loss": loss.clone().cpu().detach(),
+                        }
+                    )
+                scheduler.step()
             elif i % 1000 == 999:  # TODO: select properly
-                (
-                    self.means_,
-                    self.covars_,
-                    self.transmat_,
-                    self.startprob_,
-                ) = self.model.get_model_params()
+                try:
+                    (
+                        self.means_,
+                        self.covars_,
+                        self.transmat_,
+                        self.startprob_,
+                    ) = self.model.get_model_params()
+                except:
+                    (
+                        self.means_,
+                        cov,
+                        self.transmat_,
+                        self.startprob_,
+                    ) = self.model.get_model_params()
 
                 if Xc is not None:
                     score = self.score(Xc, lengthsc)
                     self.monitor_.report(score)
                     if (
-                        early_stopping and
-                        self.monitor_.converged
+                        early_stopping and self.monitor_.converged
                     ):  # TODO: monitor convergence from torch training
                         break
-        (
-            self.means_,
-            self.covars_,
-            self.transmat_,
-            self.startprob_,
-        ) = self.model.get_model_params()
-        # wandb.finish()
+        try:
+            (
+                self.means_,
+                self.covars_,
+                self.transmat_,
+                self.startprob_,
+            ) = self.model.get_model_params()
+        except:
+            (
+                self.means_,
+                cov,
+                self.transmat_,
+                self.startprob_,
+            ) = self.model.get_model_params()
 
     def fit(
         self,
@@ -560,8 +680,7 @@ class DiscreteHMM(hmm.GaussianHMM):
         Xd: Optional[npt.NDArray] = None,
         lengths_d: Optional[npt.NDArray[int]] = None,
         update_nodes: bool = False,
-
-        early_stopping: bool = False
+        early_stopping: bool = False,
     ):
         # TODO: fix docstrings
         """
@@ -587,6 +706,7 @@ class DiscreteHMM(hmm.GaussianHMM):
             )
 
 
+torch.autograd.set_detect_anomaly(True)
 if __name__ == "__main__":
     hmm = hmm.GaussianHMM(3).fit(np.random.normal(0, 1, 100).reshape(-1, 1))
     obs, hid = hmm.sample(100)
@@ -602,9 +722,7 @@ if __name__ == "__main__":
     #     "latin_cube_q", 10, n_components=3, learning_alg="cooc", verbose=True
     # )
 
-    myHMM5 = DiscreteHMM(
-        "sobol", 10, n_components=3, learning_alg="cooc", verbose=True
-    )
+    myHMM5 = DiscreteHMM("sobol", 10, n_components=3, learning_alg="cooc", verbose=True)
 
     myHMM6 = DiscreteHMM(
         "halton", 10, n_components=3, learning_alg="cooc", verbose=True
