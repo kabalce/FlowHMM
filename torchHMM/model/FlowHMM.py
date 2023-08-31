@@ -212,6 +212,7 @@ class FlowHmmOptim(torch.nn.Module):
         )
 
 
+
 class FlowHMM(hmm.GaussianHMM):
     def __init__(
         self,
@@ -397,7 +398,6 @@ class FlowHMM(hmm.GaussianHMM):
             self._provide_nodes_halton(X)
         else:
             self._provide_nodes_uniform(X)
-
         mins = X.min(axis=0) - (X.max(axis=0) - X.min(axis=0)) * 0.05
         maxs = X.max(axis=0) + (X.max(axis=0) - X.min(axis=0)) * 0.05
         grids = [np.linspace(mins[i], maxs[i], 2) for i in range(X.shape[1])]
@@ -405,7 +405,6 @@ class FlowHMM(hmm.GaussianHMM):
                            itertools.product(*[[i for i in range(2)] for r in range(X.shape[1])])]).T
 
         self.nodes = np.concatenate([frame, self.nodes], axis=1)
-        # self.n_features = self.nodes.shape[1]
 
     def discretize(self, X: npt.NDArray, force: bool):
         """
@@ -475,7 +474,6 @@ class FlowHMM(hmm.GaussianHMM):
         :param lengths: Lengths of individual sequences in X
         """
         # init k-means with a batch of data (of some maximum size)?
-        # super()._init(self.discretize(X, False).reshape(-1, 1))
         super()._init(X)
         for e in ["z", "u"]:
             if self._needs_init(e, f"{e}_"):

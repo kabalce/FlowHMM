@@ -143,6 +143,7 @@ class HmmOptim(torch.nn.Module):
                 res[i][tril_indices[0], tril_indices[1]] = self._covar_tensor[i]
             return torch.concatenate([(x @ x.T)[None, :, :] for x in res], dim=0)
 
+
     def forward(self, nodes):
         """
         Calculate the forward pass of the torch.nn.Module
@@ -198,7 +199,7 @@ class HmmOptim(torch.nn.Module):
         startprob = torch.sum(S, dim=1)
         transmat = S / startprob.unsqueeze(1)
 
-        # covars = torch.tril(self._covar_tensor) @ torch.transpose(torch.tril(self._covar_tensor), 1, 2)
+
         covars = self._get_covar()
         means = self._means_tensor
         return (
@@ -576,9 +577,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                 if run is not None:
                     run.log({"score": self.score(Xc, lengthsc), "loss": loss.clone().cpu().detach()})
                 scheduler.step()
-                # print(cov)
             elif i % 1000 == 999:  # TODO: select properly
-            # if i % 1000 == 999:  # TODO: select properly
                 try:
                     (
                         self.means_,
@@ -593,7 +592,6 @@ class DiscreteHMM(hmm.GaussianHMM):
                         self.transmat_,
                         self.startprob_,
                     ) = self.model.get_model_params()
-                    # print(cov)
 
                 if Xc is not None:
                     score = self.score(Xc, lengthsc)
@@ -617,8 +615,7 @@ class DiscreteHMM(hmm.GaussianHMM):
                 self.transmat_,
                 self.startprob_,
             ) = self.model.get_model_params()
-            print(cov)
-        # wandb.finish()
+
 
     def fit(
         self,
