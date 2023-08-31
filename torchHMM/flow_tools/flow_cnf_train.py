@@ -13,20 +13,57 @@ from cnf_utils import build_model_tabular, standard_normal_logprob
 
 def ParseArguments():
     parser = argparse.ArgumentParser(description="Project")
-    parser.add_argument('--example', default="2", required=False, help='Example (1 or 2, default: %(default)s)')
-    parser.add_argument('--n_train', default="2000", required=False, help='nr of training data (default: %(default)s)')
-    parser.add_argument('--nr_epochs', default="1000", required=False, help='nr of epochs (default: %(default)s)')
-    parser.add_argument('--lrate', default="0.001", required=False, help='learning rate (default: %(default)s)')
-    parser.add_argument('--dims', default="256", required=False, help='dims (default: %(default)s)')
-    parser.add_argument('--output-model', default="flow_model.pt", required=False,
-                        help='output model (default: %(default)s)')
-    parser.add_argument('--output-train-data', default="train_data.pkl", required=False,
-                        help='train data  (default: %(default)s)')
+    parser.add_argument(
+        "--example",
+        default="2",
+        required=False,
+        help="Example (1 or 2, default: %(default)s)",
+    )
+    parser.add_argument(
+        "--n_train",
+        default="2000",
+        required=False,
+        help="nr of training data (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--nr_epochs",
+        default="1000",
+        required=False,
+        help="nr of epochs (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--lrate",
+        default="0.001",
+        required=False,
+        help="learning rate (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--dims", default="256", required=False, help="dims (default: %(default)s)"
+    )
+    parser.add_argument(
+        "--output-model",
+        default="flow_model.pt",
+        required=False,
+        help="output model (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--output-train-data",
+        default="train_data.pkl",
+        required=False,
+        help="train data  (default: %(default)s)",
+    )
 
     args = parser.parse_args()
 
-    return args.n_train, args.nr_epochs, args.lrate, args.example, args.output_model, args.output_train_data, args.dims
-
+    return (
+        args.n_train,
+        args.nr_epochs,
+        args.lrate,
+        args.example,
+        args.output_model,
+        args.output_train_data,
+        args.dims,
+    )
 
 
 def ParseFlowArgs(command_args: Optional[list[str]] = None):
@@ -170,27 +207,27 @@ def sample_data_2D(n_samples) -> np.ndarray:
     return result
 
 
-
 def sample_data_2D_moons(n_samples) -> np.ndarray:
     """
     Sample 2D dataset: MOONS
     Returns: numpy array of the shape (n_samples, 2).
     """
 
-    points, classes_true = make_moons(n_samples, noise=.05, random_state=0)
+    points, classes_true = make_moons(n_samples, noise=0.05, random_state=0)
 
     x = points[:, 0]
     y = points[:, 1]
-
 
     result = np.array([x, y]).T
     return result
 
 
-
 def sample_data_1D(samples):
-    n_samples1, n_samples2, n_samples3=   int(samples / 4), int(samples / 2), int(samples/ 4)
-
+    n_samples1, n_samples2, n_samples3 = (
+        int(samples / 4),
+        int(samples / 2),
+        int(samples / 4),
+    )
 
     x = np.random.beta(7, 1.1, size=(n_samples1, 1))
     y = np.random.uniform(low=0.2, high=0.4, size=(n_samples2, 1))
@@ -198,21 +235,24 @@ def sample_data_1D(samples):
     return np.concatenate([x, y, z])
 
 
+# main
 
-
-
-
-
-#main
-
-n_train, nr_epochs, lrate, example, output_model, output_train_data, dims = ParseArguments()
+(
+    n_train,
+    nr_epochs,
+    lrate,
+    example,
+    output_model,
+    output_train_data,
+    dims,
+) = ParseArguments()
 
 n_train = int(n_train)
 nr_epochs = int(nr_epochs)
 lrate = float(lrate)
 example = int(example)
 
-#print(n_train, nr_epochs, lrate, example, output_model, output_train_data)
+# print(n_train, nr_epochs, lrate, example, output_model, output_train_data)
 
 
 args = ParseFlowArgs(["--dims", f"{dims}-{dims}"])
@@ -220,18 +260,20 @@ args = ParseFlowArgs(["--dims", f"{dims}-{dims}"])
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-if(example==1):
+if example == 1:
     samples = sample_data_1D(n_train)
 
-if(example==2):
+if example == 2:
     samples = sample_data_2D_moons(n_train)
 
-output_train_data_file = output_train_data.split(".pkl")[0]+"_n_"+str(n_train)+".pkl"
+output_train_data_file = (
+    output_train_data.split(".pkl")[0] + "_n_" + str(n_train) + ".pkl"
+)
 
 with open(output_train_data_file, "wb") as file:
     pickle.dump(samples, file)
 
-print("DDDFD ",output_train_data_file)
+print("DDDFD ", output_train_data_file)
 quit()
 
 data_dim = samples.shape[1]
@@ -240,12 +282,13 @@ flow_model = build_model_tabular(args, samples.shape[1]).to(device)
 
 samples_torch = torch.tensor(samples).float().to(device)
 print("Training model:")
-train_flow(flow_model, samples_torch, nr_epochs=nr_epochs, lr=lrate, weight_decay=0.00001)
+train_flow(
+    flow_model, samples_torch, nr_epochs=nr_epochs, lr=lrate, weight_decay=0.00001
+)
 print("Done (training)")
 
 
-torch.save(flow_model,output_model)
+torch.save(flow_model, output_model)
 
 print("Saved training data as:\t ", output_train_data_file)
-print("Saved flow model as as:\t ",output_model)
-
+print("Saved flow model as as:\t ", output_model)

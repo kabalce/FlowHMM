@@ -28,11 +28,13 @@ class ModelWrapper:
 
         hidden = self.model(items, A)
         get = lambda i: hidden[i][alias_inputs[i]]
-        seq_hidden = torch.stack([get(i) for i in torch.arange(len(alias_inputs)).long()])
+        seq_hidden = torch.stack(
+            [get(i) for i in torch.arange(len(alias_inputs)).long()]
+        )
         return targets, self.model.compute_scores(seq_hidden, mask)
 
     def save_results(self, data, results_path, id2item=None):
-        with open(results_path, 'w') as out_file:
+        with open(results_path, "w") as out_file:
             self.model.eval()
             slices = data.generate_batch(self.model.batch_size)
             with torch.no_grad():
@@ -42,10 +44,10 @@ class ModelWrapper:
                     sub_scores = trans_to_cpu(sub_scores).detach().numpy()
                     for idx, scores in zip(i, sub_scores):
                         if id2item is not None:
-                            items = [id2item[item_id] for item_id in scores+1]
+                            items = [id2item[item_id] for item_id in scores + 1]
                         else:
-                            items = [str(item_id) for item_id in scores+1]
-                        items = ' '.join(items)
+                            items = [str(item_id) for item_id in scores + 1]
+                        items = " ".join(items)
                         out_file.write(f"{idx} [{items}]\n")
 
     def test(self, data, abx_tests_pdf=None):
@@ -65,8 +67,8 @@ class ModelWrapper:
                         mrr.append(1 / (np.where(score == target - 1)[0][0] + 1))
 
         metrics = {
-            'Recall@20': np.mean(hit) * 100,
-            'MRR@20': np.mean(mrr) * 100,
+            "Recall@20": np.mean(hit) * 100,
+            "MRR@20": np.mean(mrr) * 100,
         }
 
         if abx_tests_pdf is not None:
@@ -106,19 +108,21 @@ class Trainer(ModelWrapper):
 
             if j % int(len(slices) / self.log_freq + 1) == 0:
                 metrics = self.test(test_data, abx_tests_pdf)
-                metrics['loss'] = np.mean(loss)
+                metrics["loss"] = np.mean(loss)
 
-                if self.best_recall < metrics['Recall@20']:
-                    self.best_recall = metrics['Recall@20']
+                if self.best_recall < metrics["Recall@20"]:
+                    self.best_recall = metrics["Recall@20"]
                     improved_flag = 1
-                if self.best_mrr < metrics['MRR@20']:
-                    self.best_mrr = metrics['MRR@20']
+                if self.best_mrr < metrics["MRR@20"]:
+                    self.best_mrr = metrics["MRR@20"]
                     improved_flag = 1
-                metrics.update({
-                    'Recall_best': self.best_recall,
-                    'MRR_best': self.best_mrr,
-                    'epoch': self.epoch,
-                })
+                metrics.update(
+                    {
+                        "Recall_best": self.best_recall,
+                        "MRR_best": self.best_mrr,
+                        "epoch": self.epoch,
+                    }
+                )
 
                 wandb.log(metrics)
                 print(f"[{j}/{len(slices)}]")
@@ -129,45 +133,70 @@ class Trainer(ModelWrapper):
         self.epoch += 1
         return improved_flag
 
-    def fit(self, train_data, test_data, epochs, patience, unfreeze_embeddings=None, abx_tests_pdf=None):
+    def fit(
+        self,
+        train_data,
+        test_data,
+        epochs,
+        patience,
+        unfreeze_embeddings=None,
+        abx_tests_pdf=None,
+    ):
         start = time.time()
         bad_counter = 0
 
         while self.epoch < epochs:
             if unfreeze_embeddings is not None and self.epoch == unfreeze_embeddings:
                 self.model.unfreeze_embeddings()
-            print('-------------------------------------------------------')
-            print('epoch: ', self.epoch)
+            print("-------------------------------------------------------")
+            print("epoch: ", self.epoch)
 
             if unfreeze_embeddings is not None and self.epoch < unfreeze_embeddings:
-                flag = self.step(train_data, test_data, scheduler_step=False, abx_tests_pdf=abx_tests_pdf)
+                flag = self.step(
+                    train_data,
+                    test_data,
+                    scheduler_step=False,
+                    abx_tests_pdf=abx_tests_pdf,
+                )
             else:
-                flag = self.step(train_data, test_data, scheduler_step=True, abx_tests_pdf=abx_tests_pdf)
+                flag = self.step(
+                    train_data,
+                    test_data,
+                    scheduler_step=True,
+                    abx_tests_pdf=abx_tests_pdf,
+                )
 
-            print(f'Flag: {flag}')
+            print(f"Flag: {flag}")
 
-            print('Best Result:')
-            print('\tRecall@20:\t%.4f\tMMR@20:\t%.4f' % (self.best_recall, self.best_mrr))
+            print("Best Result:")
+            print(
+                "\tRecall@20:\t%.4f\tMMR@20:\t%.4f" % (self.best_recall, self.best_mrr)
+            )
             bad_counter += 1 - flag
 
             if self.model_dir is not None:
-                torch.save(self.model.state_dict(), Path(self.model_dir) / f'epoch_{self.epoch}.pth')
+                torch.save(
+                    self.model.state_dict(),
+                    Path(self.model_dir) / f"epoch_{self.epoch}.pth",
+                )
 
-            print(f'Bad counter: {bad_counter}/{patience}')
+            print(f"Bad counter: {bad_counter}/{patience}")
             if bad_counter >= patience:
                 break
-        print('-------------------------------------------------------')
+        print("-------------------------------------------------------")
         metrics = self.test(test_data, abx_tests_pdf)
 
-        if self.best_recall < metrics['Recall@20']:
-            self.best_recall = metrics['Recall@20']
-        if self.best_mrr < metrics['MRR@20']:
-            self.best_mrr = metrics['MRR@20']
-        metrics.update({
-            'Recall_best': self.best_recall,
-            'MRR_best': self.best_mrr,
-            'epoch': self.epoch,
-        })
+        if self.best_recall < metrics["Recall@20"]:
+            self.best_recall = metrics["Recall@20"]
+        if self.best_mrr < metrics["MRR@20"]:
+            self.best_mrr = metrics["MRR@20"]
+        metrics.update(
+            {
+                "Recall_best": self.best_recall,
+                "MRR_best": self.best_mrr,
+                "epoch": self.epoch,
+            }
+        )
         print(f"Final metrics: \n{metrics}")
         end = time.time()
         print("Run time: %f s" % (end - start))

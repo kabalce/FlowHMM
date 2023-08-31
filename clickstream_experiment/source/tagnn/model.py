@@ -25,8 +25,16 @@ class GNN(Module):
         self.linear_edge_f = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
 
     def GNNCell(self, A, hidden):
-        input_in = torch.matmul(A[:, :, :A.shape[1]], self.linear_edge_in(hidden)) + self.b_iah
-        input_out = torch.matmul(A[:, :, A.shape[1]: 2 * A.shape[1]], self.linear_edge_out(hidden)) + self.b_oah
+        input_in = (
+            torch.matmul(A[:, :, : A.shape[1]], self.linear_edge_in(hidden))
+            + self.b_iah
+        )
+        input_out = (
+            torch.matmul(
+                A[:, :, A.shape[1] : 2 * A.shape[1]], self.linear_edge_out(hidden)
+            )
+            + self.b_oah
+        )
         inputs = torch.cat([input_in, input_out], 2)
         gi = F.linear(inputs, self.w_ih, self.b_ih)
         gh = F.linear(hidden, self.w_hh, self.b_hh)
@@ -53,21 +61,33 @@ class SessionGraph(Module):
         self.variant = opt.variant
         self.use_target = not opt.ignore_target
         if init_embeddings is not None:
-            self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(init_embeddings))
+            self.embedding = nn.Embedding.from_pretrained(
+                torch.FloatTensor(init_embeddings)
+            )
         else:
             self.embedding = nn.Embedding(self.n_node, self.hidden_size)
         self.gnn = GNN(self.hidden_size, step=opt.step)
         self.linear_one = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.linear_two = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
         self.linear_three = nn.Linear(self.hidden_size, 1, bias=False)
-        if self.variant != 'hybrid':
-            self.linear_transform = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
+        if self.variant != "hybrid":
+            self.linear_transform = nn.Linear(
+                self.hidden_size, self.hidden_size, bias=True
+            )
         else:
-            self.linear_transform = nn.Linear(self.hidden_size * 2, self.hidden_size, bias=True)
-        self.linear_t = nn.Linear(self.hidden_size, self.hidden_size, bias=False)  #target attention
+            self.linear_transform = nn.Linear(
+                self.hidden_size * 2, self.hidden_size, bias=True
+            )
+        self.linear_t = nn.Linear(
+            self.hidden_size, self.hidden_size, bias=False
+        )  # target attention
         self.loss_function = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=opt.lr, weight_decay=opt.l2)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=opt.lr_dc_step, gamma=opt.lr_dc)
+        self.optimizer = torch.optim.Adam(
+            self.parameters(), lr=opt.lr, weight_decay=opt.l2
+        )
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+            self.optimizer, step_size=opt.lr_dc_step, gamma=opt.lr_dc
+        )
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -82,26 +102,32 @@ class SessionGraph(Module):
         # a - s_global -> s_t
         # b - v_i^(0)
         # target - s_target
-        ht = hidden[torch.arange(mask.shape[0]).long(), torch.sum(mask, 1) - 1] # batch_size x latent_size
+        ht = hidden[
+            torch.arange(mask.shape[0]).long(), torch.sum(mask, 1) - 1
+        ]  # batch_size x latent_size
         s_global = self.compute_s_global(hidden, mask, ht)
-        if self.variant == 'local':
+        if self.variant == "local":
             a = self.linear_transform(ht)
-        elif self.variant == 'global':
+        elif self.variant == "global":
             a = self.linear_transform(s_global)
-        elif self.variant == 'hybrid':
+        elif self.variant == "hybrid":
             a = self.linear_transform(torch.cat([s_global, ht], 1))
         else:
-            a = torch.zeros(ht.size(), dtype=torch.float, device='cuda')
+            a = torch.zeros(ht.size(), dtype=torch.float, device="cuda")
 
         b = self.embedding.weight[1:]  # n_nodes x latent_size
         a = a.view(ht.shape[0], 1, ht.shape[1])  # b,1,d
         if self.use_target:
             # target attention: sigmoid(hidden M b)
             # mask  # batch_size x seq_length
-            hidden = hidden * mask.view(mask.shape[0], -1, 1).float()  # batch_size x seq_length x latent_size
+            hidden = (
+                hidden * mask.view(mask.shape[0], -1, 1).float()
+            )  # batch_size x seq_length x latent_size
             qt = self.linear_t(hidden)  # batch_size x seq_length x latent_size
             # beta = torch.sigmoid(b @ qt.transpose(1,2))  # batch_size x n_nodes x seq_length
-            beta = F.softmax(b @ qt.transpose(1,2), -1)  # batch_size x n_nodes x seq_length
+            beta = F.softmax(
+                b @ qt.transpose(1, 2), -1
+            )  # batch_size x n_nodes x seq_length
             target = beta @ hidden  # batch_size x n_nodes x latent_size
             a = a + target  # b,n,d
         scores = torch.sum(a * b, -1)  # b,n
@@ -109,12 +135,16 @@ class SessionGraph(Module):
         return scores
 
     def compute_s_global(self, hidden, mask, ht):
-        q1 = self.linear_one(ht).view(ht.shape[0], 1, ht.shape[1])  # batch_size x 1 x latent_size
+        q1 = self.linear_one(ht).view(
+            ht.shape[0], 1, ht.shape[1]
+        )  # batch_size x 1 x latent_size
         q2 = self.linear_two(hidden)  # batch_size x seq_length x latent_size
         alpha = self.linear_three(torch.sigmoid(q1 + q2))  # (b,s,1)
         # alpha = torch.sigmoid(alpha) # B,S,1
         alpha = F.softmax(alpha, 1)  # B,S,1
-        return torch.sum(alpha * hidden * mask.view(mask.shape[0], -1, 1).float(), 1)  # (b,d)
+        return torch.sum(
+            alpha * hidden * mask.view(mask.shape[0], -1, 1).float(), 1
+        )  # (b,d)
 
     def forward(self, inputs, A):
         hidden = self.embedding(inputs)

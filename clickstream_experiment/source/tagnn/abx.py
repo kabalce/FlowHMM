@@ -5,11 +5,19 @@ import pandas as pd
 from scipy import spatial
 from tqdm.auto import tqdm
 
-DATA_PATH = '/pio/scratch/1/recommender_systems'
+DATA_PATH = "/pio/scratch/1/recommender_systems"
 
 
-def prepare_abx_tests(categories_pdf, test_set_size=10000, category_column_name="category_1", item_column_name="asin",
-                      weighted_sample=True, min_counts=0, items_to_choose_from=None, seed=None):
+def prepare_abx_tests(
+    categories_pdf,
+    test_set_size=10000,
+    category_column_name="category_1",
+    item_column_name="asin",
+    weighted_sample=True,
+    min_counts=0,
+    items_to_choose_from=None,
+    seed=None,
+):
 
     random.seed(seed)
 
@@ -20,7 +28,9 @@ def prepare_abx_tests(categories_pdf, test_set_size=10000, category_column_name=
     categories_dict = {}
     for category, items in categories_grouped:
         if items_to_choose_from is not None:
-            categories_dict[category] = items.loc[items[item_column_name].isin(items_to_choose_from)]
+            categories_dict[category] = items.loc[
+                items[item_column_name].isin(items_to_choose_from)
+            ]
         else:
             categories_dict[category] = items
 
@@ -44,11 +54,13 @@ def prepare_abx_tests(categories_pdf, test_set_size=10000, category_column_name=
         negative_item = categories_dict[negative].sample(1)[item_column_name].values
 
         # appending record
-        line = {"A": positive_items[0],
-                "B": negative_item[0],
-                "X": positive_items[1],
-                "category_AX": positive,
-                "category_B": negative}
+        line = {
+            "A": positive_items[0],
+            "B": negative_item[0],
+            "X": positive_items[1],
+            "category_AX": positive,
+            "category_B": negative,
+        }
         test_set.append(line)
 
     return pd.DataFrame(test_set)
@@ -61,8 +73,8 @@ def calculate_abx_score(items_embeddings, abx_tests_pdf):
     B = items_embeddings[abx_tests_pdf["B"]]
     X = items_embeddings[abx_tests_pdf["X"]]
 
-    dist_A = ((A - X)**2).sum(axis=1)
-    dist_B = ((B - X)**2).sum(axis=1)
+    dist_A = ((A - X) ** 2).sum(axis=1)
+    dist_B = ((B - X) ** 2).sum(axis=1)
 
     cos_dist_A = np.zeros(lines)
     cos_dist_B = np.zeros(lines)
@@ -72,6 +84,6 @@ def calculate_abx_score(items_embeddings, abx_tests_pdf):
         cos_dist_B[i] = spatial.distance.cosine(B[i, :], X[i, :])
 
     return {
-        'abx_euclidean':  np.mean(dist_A < dist_B),
-        'abx_cosine':  np.mean(cos_dist_A < cos_dist_B),
+        "abx_euclidean": np.mean(dist_A < dist_B),
+        "abx_cosine": np.mean(cos_dist_A < cos_dist_B),
     }

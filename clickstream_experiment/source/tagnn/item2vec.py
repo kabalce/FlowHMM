@@ -19,8 +19,16 @@ class Item2Vec:
 
         self.grouped_pdf = None
 
-    def train(self, train_pdf, user_col='reviewerID', item_col='asin', permutations=True, corpus_file=None,
-              update=False, epochs=None):
+    def train(
+        self,
+        train_pdf,
+        user_col="reviewerID",
+        item_col="asin",
+        permutations=True,
+        corpus_file=None,
+        update=False,
+        epochs=None,
+    ):
         if epochs is None:
             epochs = self.model.epochs
 
@@ -28,14 +36,14 @@ class Item2Vec:
             lambda xs: list(map(str, xs))
         )
 
-        temp_file = NamedTemporaryFile('w+')
+        temp_file = NamedTemporaryFile("w+")
         if corpus_file is None:
             for items in self.grouped_pdf.values:
                 if permutations:
                     for _ in range(int(np.sqrt(len(items)))):
-                        temp_file.write(' '.join(np.random.permutation(items)) + '\n')
+                        temp_file.write(" ".join(np.random.permutation(items)) + "\n")
                 else:
-                    temp_file.write(' '.join(items) + '\n')
+                    temp_file.write(" ".join(items) + "\n")
             corpus_file = temp_file.name
 
         self.model.build_vocab(corpus_file=corpus_file, update=update)
@@ -43,7 +51,7 @@ class Item2Vec:
             corpus_file=corpus_file,
             total_examples=self.model.corpus_count,
             epochs=epochs,
-            total_words=self.model.corpus_total_words
+            total_words=self.model.corpus_total_words,
         )
 
         temp_file.close()
@@ -58,7 +66,9 @@ class Item2Vec:
         return l1
 
     def generate_item_embeddings(self):
-        embeddings_pdf = pd.DataFrame(self.model.wv.vectors, index=np.array(self.model.wv.index_to_key, dtype=int))
+        embeddings_pdf = pd.DataFrame(
+            self.model.wv.vectors, index=np.array(self.model.wv.index_to_key, dtype=int)
+        )
         embeddings_pdf.columns = map(str, embeddings_pdf.columns)
         return embeddings_pdf.copy()
 
@@ -72,7 +82,7 @@ class Item2Vec:
         return embeddings_pdf.copy()
 
     def calculate_abx_scores(self, abx_tests_pdf):
-        abx_tests_pdf = abx_tests_pdf[['A', 'B', 'X']].apply(
+        abx_tests_pdf = abx_tests_pdf[["A", "B", "X"]].apply(
             lambda items: [self.model.wv.key_to_index[str(item)] for item in items]
         )
         return calculate_abx_score(self.model.wv.vectors, abx_tests_pdf)

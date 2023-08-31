@@ -18,7 +18,7 @@ from hmmlearn import hmm
 
 from theoretical_experiment.visual_tools import plot_HMM, plot_Qs, plot_metric
 
-PROJECT_PATH = Path(__file__).parent # .parent
+PROJECT_PATH = Path(__file__).parent  # .parent
 # import sys
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
@@ -29,7 +29,10 @@ T = 10000
 np.random.seed(2023)
 sns.set_style("white")
 
-wandb_project_name = f"1_GaussianHMM_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}"
+wandb_project_name = (
+    f"1_GaussianHMM_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}"
+)
+
 
 def init_true_model():
     true_model = hmm.GaussianHMM(n_components=3, covariance_type="full")
@@ -104,11 +107,7 @@ def init_model_with_params(discretize_meth, true_model_, X_train_, n):
 
 
 def list_grid_size():
-    return [
-        2**2,
-        2**4,
-        2**6
-    ]
+    return [2**2, 2**4, 2**6]
 
 
 def kl_divergence(p_, q_):
@@ -120,9 +119,12 @@ def kl_divergence(p_, q_):
 
 
 def accuracy(Z_hat, Z_):
-    perm = find_permutation(np.concatenate([Z_hat, np.arange(max(Z_))]),
-                            np.concatenate([Z_, np.arange(max(Z_))]))
+    perm = find_permutation(
+        np.concatenate([Z_hat, np.arange(max(Z_))]),
+        np.concatenate([Z_, np.arange(max(Z_))]),
+    )
     return (perm[Z_hat] == Z_).mean()
+
 
 def score_model(model_, X_, Z_, Q_gt, info):
     ll = model.score(X_)
@@ -134,7 +136,8 @@ def score_model(model_, X_, Z_, Q_gt, info):
     else:
         kl = None
         d_tv = None
-    return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
+    return {"kl": kl, "ll": ll, "acc": acc, "d_tv": d_tv, **info}
+
 
 results_path = f"{PROJECT_PATH}/theoretical_experiment/1_results_final"
 Path(results_path).mkdir(exist_ok=True, parents=True)
@@ -159,8 +162,7 @@ if __name__ == "__main__":
         )
         model.fit(X_train)
 
-        results.append(
-            score_model(model, X_test, Z_test, None, dict()))
+        results.append(score_model(model, X_test, Z_test, None, dict()))
 
     for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in grid_sizes:
@@ -174,10 +176,12 @@ if __name__ == "__main__":
                 f"{results_path}/1_nodes_{discretize_meth}_{n}.png",
             )
 
-            for max_epoch, lr in itertools.product([2000],  [0.001, 0.01, 0.1]):
+            for max_epoch, lr in itertools.product([2000], [0.001, 0.01, 0.1]):
 
-                for _ in tqdm(range(20)): # As we work with random methods, the initialization and  the discretization differ in runs
-                    run=None
+                for _ in tqdm(
+                    range(20)
+                ):  # As we work with random methods, the initialization and  the discretization differ in runs
+                    run = None
                     # run = wandb.init(
                     #     project=wandb_project_name,
                     #     name=f"ex_1_{discretize_meth}_{n}_{max_epoch}_{lr}",
@@ -194,7 +198,9 @@ if __name__ == "__main__":
                         verbose=True,
                         params="mct",
                         init_params="mct",
-                        optim_params=dict(max_epoch=max_epoch, lr=lr, weight_decay=0, run=run),
+                        optim_params=dict(
+                            max_epoch=max_epoch, lr=lr, weight_decay=0, run=run
+                        ),
                         n_iter=100,
                         optimizer="Adam",
                     )
@@ -202,10 +208,25 @@ if __name__ == "__main__":
                     # wandb.finish()
 
                     results.append(
-                        score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)), dict(discretization=discretize_meth, n=n, max_epoch=max_epoch, lr=lr)))
+                        score_model(
+                            model,
+                            X_test,
+                            Z_test,
+                            model._cooccurence(model.discretize(X_train, True)),
+                            dict(
+                                discretization=discretize_meth,
+                                n=n,
+                                max_epoch=max_epoch,
+                                lr=lr,
+                            ),
+                        )
+                    )
 
-                plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)), f"{results_path}/1_Q_{discretize_meth}_{n}_{max_epoch}_{lr}.png")
-
+                plot_Qs(
+                    Q_from_params(model),
+                    model._cooccurence(model.discretize(X_train, True)),
+                    f"{results_path}/1_Q_{discretize_meth}_{n}_{max_epoch}_{lr}.png",
+                )
 
     with open(
         f"{results_path}/1_discretization.json",
@@ -214,5 +235,13 @@ if __name__ == "__main__":
         json.dump(results, f, indent=4)
 
     results = pd.DataFrame(results)
-    for metric, title in zip(['d_tv', 'kl', 'acc', 'll'], ["Total variation distance", "KL divergence", 'State prediction accuracy', 'Loglikelihood']):
+    for metric, title in zip(
+        ["d_tv", "kl", "acc", "ll"],
+        [
+            "Total variation distance",
+            "KL divergence",
+            "State prediction accuracy",
+            "Loglikelihood",
+        ],
+    ):
         plot_metric(results, metric, title, f"{results_path}/1_{metric}.png")

@@ -13,8 +13,8 @@ from clickstream_experiment.source.tagnn.item2vec import Item2Vec  # TODO
 
 def normalize(embeddings, new_mean=0, new_std=1):
     mean, std = np.mean(embeddings), np.std(embeddings)
-    embeddings += (new_mean - mean)
-    embeddings *= (new_std / std)
+    embeddings += new_mean - mean
+    embeddings *= new_std / std
     return embeddings
 
 
@@ -36,22 +36,24 @@ def build_graph(train_data):
             if graph.get_edge_data(seq[i], seq[i + 1]) is None:
                 weight = 1
             else:
-                weight = graph.get_edge_data(seq[i], seq[i + 1])['weight'] + 1
+                weight = graph.get_edge_data(seq[i], seq[i + 1])["weight"] + 1
             graph.add_edge(seq[i], seq[i + 1], weight=weight)
     for node in graph.nodes:
         sum = 0
         for j, i in graph.in_edges(node):
-            sum += graph.get_edge_data(j, i)['weight']
+            sum += graph.get_edge_data(j, i)["weight"]
         if sum != 0:
             for j, i in graph.in_edges(i):
-                graph.add_edge(j, i, weight=graph.get_edge_data(j, i)['weight'] / sum)
+                graph.add_edge(j, i, weight=graph.get_edge_data(j, i)["weight"] / sum)
     return graph
 
 
 def data_masks(all_usr_pois, item_tail):
     us_lens = [len(upois) for upois in all_usr_pois]
     len_max = max(us_lens)
-    us_pois = [upois + item_tail * (len_max - le) for upois, le in zip(all_usr_pois, us_lens)]
+    us_pois = [
+        upois + item_tail * (len_max - le) for upois, le in zip(all_usr_pois, us_lens)
+    ]
     us_msks = [[1] * le + [0] * (len_max - le) for le in us_lens]
     return us_pois, us_msks, len_max
 
@@ -60,9 +62,9 @@ def split_validation(train_set, valid_portion, seed=None):
     rng = np.random.default_rng(seed)
     train_set_x, train_set_y = train_set
     n_samples = len(train_set_x)
-    sidx = np.arange(n_samples, dtype='int32')
+    sidx = np.arange(n_samples, dtype="int32")
     rng.shuffle(sidx)
-    n_train = int(np.round(n_samples * (1. - valid_portion)))
+    n_train = int(np.round(n_samples * (1.0 - valid_portion)))
     valid_set_x = [train_set_x[s] for s in sidx[n_train:]]
     valid_set_y = [train_set_y[s] for s in sidx[n_train:]]
     train_set_x = [train_set_x[s] for s in sidx[:n_train]]
@@ -89,6 +91,7 @@ def _get_global_graph(max_n_node, node, edge_weights):
         v_idx = np.where(node == v)[0][0]
         u_A[u_idx][v_idx] = edge_weights[(u, v)]
     return _get_graph_in_out(u_A)
+
 
 def _get_graph_in_out(u_A):
     u_sum_in = np.sum(u_A, 0)
@@ -124,7 +127,7 @@ class Data:
         if self.length % batch_size != 0:
             n_batch += 1
         slices = np.split(np.arange(n_batch * batch_size), n_batch)
-        slices[-1] = slices[-1][:(self.length - batch_size * (n_batch - 1))]
+        slices[-1] = slices[-1][: (self.length - batch_size * (n_batch - 1))]
         return slices
 
     def get_slice(self, i):
@@ -141,7 +144,9 @@ class Data:
             else:
                 u_A = _get_global_graph(max_n_node, node, self.edge_weights)
             A.append(u_A)
-            alias_inputs.append([np.where(node == i)[0][0] if i != 0 else 0 for i in u_input])
+            alias_inputs.append(
+                [np.where(node == i)[0][0] if i != 0 else 0 for i in u_input]
+            )
         return alias_inputs, A, items, mask, targets
 
 
@@ -171,51 +176,59 @@ def find_edge_weights(sequences):
 
 
 def read_data(data_path, dataset, validation, valid_portion):
-    train_data = pickle.load(open(data_path / f"{dataset}/train.txt", 'rb'))
+    train_data = pickle.load(open(data_path / f"{dataset}/train.txt", "rb"))
     if validation:
         train_data, valid_data = split_validation(train_data, valid_portion, seed=42)
         test_data = valid_data
     else:
-        test_data = pickle.load(open(data_path / f"{dataset}/test.txt", 'rb'))
+        test_data = pickle.load(open(data_path / f"{dataset}/test.txt", "rb"))
 
     clicks_pdf = pd.read_csv(
-        data_path / 'yoochoose-clicks.dat',
+        data_path / "yoochoose-clicks.dat",
         header=None,
-        names=['sessionID', 'timestamp', 'itemID', 'category'],
-        parse_dates=['timestamp'],
-        dtype={'sessionID': int, 'itemID': int, 'category': str},
+        names=["sessionID", "timestamp", "itemID", "category"],
+        parse_dates=["timestamp"],
+        dtype={"sessionID": int, "itemID": int, "category": str},
     )
 
-    item2id = pickle.load(open(data_path / "item2id.txt", 'rb'))
+    item2id = pickle.load(open(data_path / "item2id.txt", "rb"))
     id2item = {new_id: item_id for item_id, new_id in item2id.items()}
-    train_data = pickle.load(open(data_path / "yoochoose1_64/train.txt", 'rb'))
+    train_data = pickle.load(open(data_path / "yoochoose1_64/train.txt", "rb"))
 
-    dates = pickle.load(open(data_path / "yoochoose1_64/dates.txt", 'rb'))
-    dates = pd.to_datetime(dates, unit='s')
+    dates = pickle.load(open(data_path / "yoochoose1_64/dates.txt", "rb"))
+    dates = pd.to_datetime(dates, unit="s")
     if dates.tz is None:
-        dates = dates.tz_localize('UTC')
+        dates = dates.tz_localize("UTC")
     max_date = max(dates)
 
-    items_in_train = np.unique(list(map(lambda new_id: id2item[new_id], flatten(train_data)))).astype('int64')
+    items_in_train = np.unique(
+        list(map(lambda new_id: id2item[new_id], flatten(train_data)))
+    ).astype("int64")
 
-    filtered_clicks_pdf = clicks_pdf[clicks_pdf['timestamp'] < max_date]
+    filtered_clicks_pdf = clicks_pdf[clicks_pdf["timestamp"] < max_date]
 
-    long_sessions = filtered_clicks_pdf['sessionID'].value_counts() >= 2
+    long_sessions = filtered_clicks_pdf["sessionID"].value_counts() >= 2
     long_sessions = long_sessions.index[long_sessions]
 
-    filtered_clicks_pdf = filtered_clicks_pdf[filtered_clicks_pdf['sessionID'].isin(long_sessions)]
+    filtered_clicks_pdf = filtered_clicks_pdf[
+        filtered_clicks_pdf["sessionID"].isin(long_sessions)
+    ]
 
     return train_data, test_data, filtered_clicks_pdf, items_in_train, item2id
 
 
 def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node):
     embedding_model = Item2Vec(vector_size=opt.hiddenSize)
-    embedding_model.train(clicks_pdf, item_col='itemID', user_col='sessionID', epochs=3)
+    embedding_model.train(clicks_pdf, item_col="itemID", user_col="sessionID", epochs=3)
     embeddings_pdf = embedding_model.generate_item_embeddings()
     embeddings_pdf = embeddings_pdf.loc[embeddings_pdf.index.isin(items_in_train)]
-    embeddings_pdf = pd.DataFrame(normalize(embeddings_pdf.values), index=embeddings_pdf.index)
+    embeddings_pdf = pd.DataFrame(
+        normalize(embeddings_pdf.values), index=embeddings_pdf.index
+    )
 
-    embeddings_pdf.index = map(lambda item_id: item2id[str(item_id)], embeddings_pdf.index)
+    embeddings_pdf.index = map(
+        lambda item_id: item2id[str(item_id)], embeddings_pdf.index
+    )
 
     embeddings = np.random.standard_normal((n_node, opt.hiddenSize))
     embeddings[embeddings_pdf.index] = embeddings_pdf.values
@@ -224,8 +237,19 @@ def calculate_embeddings(opt, clicks_pdf, items_in_train, item2id, n_node):
 
 
 def calculate_abx(clicks_pdf, items_in_train, item2id):
-    categories_pdf = clicks_pdf[clicks_pdf['itemID'].isin(items_in_train)][['itemID', 'category']].drop_duplicates()
-    categories_pdf = categories_pdf[categories_pdf['category'].isin(map(str, range(1, 13)))]
-    categories_pdf.loc[:, 'itemID'] = list(map(lambda item_id: item2id[str(item_id)], categories_pdf['itemID']))
-    abx_tests_pdf = prepare_abx_tests(categories_pdf, item_column_name='itemID', category_column_name='category', seed=42)
+    categories_pdf = clicks_pdf[clicks_pdf["itemID"].isin(items_in_train)][
+        ["itemID", "category"]
+    ].drop_duplicates()
+    categories_pdf = categories_pdf[
+        categories_pdf["category"].isin(map(str, range(1, 13)))
+    ]
+    categories_pdf.loc[:, "itemID"] = list(
+        map(lambda item_id: item2id[str(item_id)], categories_pdf["itemID"])
+    )
+    abx_tests_pdf = prepare_abx_tests(
+        categories_pdf,
+        item_column_name="itemID",
+        category_column_name="category",
+        seed=42,
+    )
     return abx_tests_pdf
