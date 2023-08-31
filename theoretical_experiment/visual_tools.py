@@ -7,10 +7,20 @@ from scipy.stats import multivariate_normal
 import torch
 
 
+title_strings = {'grid': 'OG',
+                                     'random': 'RO',
+                                     'latin_cube_u':  'LH',
+                                     'latin_cube_q': 'LH_q',
+                                     'sobol': 'QS',
+                 'uniform':'RU',
+                                     'halton': 'QH'}
+
+
 def profive_cmap():
-    with urllib.request.urlopen('https://xkcd.com/color/rgb.txt') as f:
+    with open('/home/kabalce/Documents/FlowHMM/rgb.txt') as f:
         colors = f.readlines()
-    color_names = [str(c)[2:].split('\\t')[0] for c in colors[1:]]
+
+    color_names = [str(c).split('\t')[0] for c in colors[1:]]
 
     colors = sns.xkcd_palette(color_names)
     cmap = gradient_cmap(colors)
@@ -20,33 +30,45 @@ def profive_cmap():
 cmap, colors = profive_cmap()
 
 
-def plot_HMM(X, model, discretize_meth, n, path=None):
+def plot_HMM(X, model, discretize_meth, n, path=None, data = None, pca=None, XX=None, YY=None, X2=None):
     """
     Plot emission distribution and nodes
     """
+
     norm1 = multivariate_normal(model.means_[0], model.covars_[0])
     norm2 = multivariate_normal(model.means_[1], model.covars_[1])
     norm3 = multivariate_normal(model.means_[2], model.covars_[2])
     norms = [norm1, norm2, norm3]
 
-    x1, y1 = X.min(axis=0) - .5
-    x2, y2 = X.max(axis=0) + .5
+    if X2 is None:
+        X2 =  X
 
-    XX, YY = np.meshgrid(np.linspace(x1, x2, 100), np.linspace(y1, y2, 100))
-    data = np.column_stack((XX.ravel(), YY.ravel()))
-    lls = np.concatenate([norm.pdf(data).reshape(-1, 1) for norm in norms], axis=1)
+    if data is None:
+        x1, y1 = X.min(axis=0) - .5
+        x2, y2 = X.max(axis=0) + .5
+
+        XX, YY = np.meshgrid(np.linspace(x1, x2, 100), np.linspace(y1, y2, 100))
+        data = np.column_stack((XX.ravel(), YY.ravel()))
+    if pca is None:
+        lls = np.concatenate([norm.pdf(data).reshape(-1, 1) for norm in norms], axis=1)
+    else:
+        lls = np.concatenate([norm.pdf(pca.inverse_transform(data)).reshape(-1, 1) for norm in norms], axis=1)
+
 
     plt.figure(figsize=(5, 5))
     for k in range(model.n_components):
         plt.contour(XX, YY, np.exp(lls[:, k]).reshape(XX.shape), cmap=white_to_color_cmap(colors[k]), levels=6)
-
-    plt.scatter(model.nodes[0], model.nodes[1])
+    if pca is not None:
+        nodes =pca.transform(model.nodes.T)
+    else:
+        nodes = model.nodes.T
+    plt.scatter(nodes[:, 0], nodes[:,  1])
     plt.xlabel("$x_1$")
     plt.ylabel("$x_2$")
     plt.suptitle("True Distributions  and Nodes")
-    plt.title(f"{discretize_meth} {n}")
+    plt.title(f"{title_strings[discretize_meth] if discretize_meth in title_strings.keys() else discretize_meth} {n}")
     if path is not None:
-        plt.savefig(path)
+        plt.savefig(path, format='eps')
     plt.show()
     plt.close()
 
