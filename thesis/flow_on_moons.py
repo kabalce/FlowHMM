@@ -20,7 +20,7 @@ from hmmlearn import hmm
 
 from theoretical_experiment.visual_tools import plot_HMM2, plot_Qs, plot_metric, plot_HMM3
 
-PROJECT_PATH = Path(__file__).parent
+PROJECT_PATH = Path(__file__).parent.parent
 # import sys
 # sys.path.insert(1, PROJECT_PATH)
 from torchHMM.utils.utils import total_variance_dist
@@ -38,7 +38,7 @@ def Q_from_params(model_):
     Calculate Q from model parameters
     """
     if hasattr(model_, 'emissionprob_'):
-        return Q_from_params_d(model_)
+        return model_.model(torch.tensor(model_.nodes.T).float())[0].cpu().detach().numpy()
 
     S_ = model_.transmat_ * model_.startprob_[:, np.newaxis]
     distributions_ = [
@@ -72,8 +72,8 @@ def init_model(discretize_meth, X_train_, n):
         n,
         learning_alg="cooc",
         verbose=True,
-        params="ste",
-        init_params="ste",
+        params="stmc",
+        init_params="stmc",
         optim_params=dict(max_epoch=50000, lr=0.1, weight_decay=0),
         n_iter=100,
     )
@@ -86,7 +86,7 @@ def init_model(discretize_meth, X_train_, n):
 def list_grid_size():
     return [
         # 2**2,
-        2**4,
+        # 2**4,
         2**6,
         # 2**8
     ]
@@ -118,7 +118,7 @@ def score_model(model_, X_, Z_, Q_gt, info):
         d_tv = None
     return {'kl': kl, 'll': ll, 'acc': acc, 'd_tv': d_tv, **info}
 
-results_path = f"{PROJECT_PATH}/thesis/"
+results_path = f"{PROJECT_PATH}/thesis/runs_64"
 Path(results_path).mkdir(exist_ok=True, parents=True)
 grid_sizes = list_grid_size()
 
@@ -129,11 +129,11 @@ if __name__ == "__main__":
 
     results = list()
 
-    for discretize_meth in DISCRETIZATION_TECHNIQUES[-1:]:
+    for discretize_meth in DISCRETIZATION_TECHNIQUES:
         for n in grid_sizes[-1:]:
             model = init_model(discretize_meth, X_train, n)
 
-            for max_epoch, lr, lambda_ in itertools.product([1000],  [0.01], [0, 1]):
+            for max_epoch, lr, lambda_ in itertools.product([1000],  [0.01], [0]):
 
                 for _ in tqdm(range(1)): # As we work with random methods, the initialization and  the discretization differ in runs
                     run = None
@@ -150,8 +150,8 @@ if __name__ == "__main__":
                         n_components=2,
                         learning_alg="cooc",
                         verbose=True,
-                        params="ste",
-                        init_params="ste",
+                        params="stmc",
+                        init_params="stmc",
                         optim_params=dict(max_epoch=10, lr=lr, weight_decay=0, run=run),
                         n_iter=100,
                         optimizer="Adam",
@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
                     Xd = model.discretize(X_train, False)
                     lengths_d = None
-                    super(type(model), model)._init(Xd)
+                    super(type(model), model)._init(X_train)
                     model._init(X_train, None)
 
                     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -171,19 +171,19 @@ if __name__ == "__main__":
                     cooc_matrix = torch.tensor(model._cooccurence(Xd, None)).to(device).requires_grad_(False)
                     run = model.optim_params.pop('run') if 'run' in model.optim_params.keys() else None
                     optimizer = model.optimizer(model.model.parameters(), **model.optim_params)
-                    nodes_tensor = torch.tensor(model.nodes.T.copy()).float().to(device).requires_grad_(False)
+                    nodes_tensor = torch.tensor(model.nodes.copy().T).float().to(device).requires_grad_(False)
 
                     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-                    for i in range(50):
+                    for i in range(20):
                         plot_HMM3(X_test, model,
-                                  path=f"{results_path}/flow_on_moons_{i}_penalty={lambda_}.png")
-                        plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)),
-                                f"{results_path}/Q_moons_{i}_penalty={lambda_}.png")
+                                  path=f"{results_path}/flow_on_moons_{i}_64_penalty={lambda_}_{discretize_meth}.png")
+                        # plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, False)),
+                        #         f"{results_path}/Q_moons_{i}_64_penalty={lambda_}_{discretize_meth}.png")
                         results.append(
-                            score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)),
+                            score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, False)),
                                         dict(i=i * 20, penalty=lambda_)))
-                        for i in range(model.max_epoch):
+                        for _ in range(model.max_epoch):
                             optimizer.zero_grad()
                             Q_hat, probs_sums = model.model(nodes_tensor)
                             loss = torch.nn.KLDivLoss(reduction="sum")(
@@ -191,7 +191,7 @@ if __name__ == "__main__":
                             ) - lambda_ * probs_sums.sum() / model.n_components
                             loss.backward()
                             optimizer.step()
-                            if i % 100 == 0:  # TODO: think of it...
+                            if i % 10 == 0:  # TODO: think of it...
                                 (
                                     _,
                                     model.transmat_,
@@ -203,7 +203,7 @@ if __name__ == "__main__":
                                 else:
                                     print({"score": model.score(X_train, None), "loss": loss.cpu().detach()})
 
-                            elif i % 1000 == 999:  # TODO: select properly
+                            elif i % 100 == 99:  # TODO: select properly
                                 (
                                     _,
                                     model.transmat_,
@@ -225,9 +225,9 @@ if __name__ == "__main__":
                     i+=1
 
                     plot_HMM3(X_test, model,
-                              path=f"{results_path}/flow_on_moons_{i}_penalty={lambda_}.png")
+                              path=f"{results_path}/flow_on_moons_{i}_64_penalty={lambda_}_{discretize_meth}.png")
                     # plot_Qs(Q_from_params(model), model._cooccurence(model.discretize(X_train, True)),
-                    #         f"{results_path}/Q_moons_{i}_penalty={lambda_}.png")
+                    #         f"{results_path}/Q_moons_{i}_64_penalty={lambda_}.png")
                     results.append(
                         score_model(model, X_test, Z_test, model._cooccurence(model.discretize(X_train, True)),
                                     dict(i=i * 20, penalty=lambda_)))
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 
 
                 with open(
-                    f"{results_path}/single_run.json",
+                    f"{results_path}/single_run_64.json",
                     "w",
                 ) as f:
                     json.dump(results, f, indent=4)

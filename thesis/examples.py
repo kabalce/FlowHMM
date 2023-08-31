@@ -97,7 +97,7 @@ for i in range(16):
 plt.xlabel("$x_1$")
 plt.ylabel("$x_2$")
 plt.title("Gaussian HMM Example")
-plt.savefig('gaussian_hmm_example.png')
+plt.savefig('gaussian_hmm_example.eps', format='eps')
 plt.show()
 plt.close()
 

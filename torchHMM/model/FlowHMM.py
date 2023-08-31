@@ -212,7 +212,7 @@ class FlowHmmOptim(torch.nn.Module):
         )
 
 
-class FlowHMM(hmm.CategoricalHMM):
+class FlowHMM(hmm.GaussianHMM):
     def __init__(
         self,
         discretization_method: str = "random",
@@ -230,8 +230,8 @@ class FlowHMM(hmm.CategoricalHMM):
         n_iter: int = 10,
         tol: float = 0.01,
         verbose: bool = False,
-        params: str = "te",  # TODO: default without 's'
-        init_params: str = "te",
+        params: str = "tmc",  # TODO: default without 's'
+        init_params: str = "tmc",
         implementation: str = "log",
 
         means=None,
@@ -295,8 +295,8 @@ class FlowHMM(hmm.CategoricalHMM):
         maxs = X.max(axis=0)
         dims = [1]
         for i in range(X.shape[1]):
-            dims.append(int((self.no_nodes / dims[i]) ** (1 / (X.shape[1] - i))))
-        grids = [np.linspace(mins[i], maxs[i], dims[i + 1]) for i in range(X.shape[1])]
+            dims.append(int((self.no_nodes / np.prod(dims[:(i+1)])) ** (1 / (X.shape[1] - i))))
+        grids = [np.linspace(mins[i], maxs[i] , dims[i + 1]) for i in range(X.shape[1])]
         self.nodes = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in itertools.product(*[[i for i in range(r)] for r in dims[1:]])]).T
         
 
@@ -378,6 +378,7 @@ class FlowHMM(hmm.CategoricalHMM):
         :param X: Original, continuous (gaussian) data
         :param force: If nodes should be updated, when they have been previously specified
         """
+
         if not force and (self.nodes is not None):
             if self.verbose:
                 print("Nodes have been already set. Use force=True to update them")
@@ -396,7 +397,15 @@ class FlowHMM(hmm.CategoricalHMM):
             self._provide_nodes_halton(X)
         else:
             self._provide_nodes_uniform(X)
-        self.n_features = self.nodes.shape[1]
+
+        mins = X.min(axis=0) - (X.max(axis=0) - X.min(axis=0)) * 0.05
+        maxs = X.max(axis=0) + (X.max(axis=0) - X.min(axis=0)) * 0.05
+        grids = [np.linspace(mins[i], maxs[i], 2) for i in range(X.shape[1])]
+        frame = np.vstack([np.array([grids[d][ind[d]] for d in range(X.shape[1])]) for ind in
+                           itertools.product(*[[i for i in range(2)] for r in range(X.shape[1])])]).T
+
+        self.nodes = np.concatenate([frame, self.nodes], axis=1)
+        # self.n_features = self.nodes.shape[1]
 
     def discretize(self, X: npt.NDArray, force: bool):
         """
@@ -466,7 +475,8 @@ class FlowHMM(hmm.CategoricalHMM):
         :param lengths: Lengths of individual sequences in X
         """
         # init k-means with a batch of data (of some maximum size)?
-        super()._init(self.discretize(X, False).reshape(-1, 1))
+        # super()._init(self.discretize(X, False).reshape(-1, 1))
+        super()._init(X)
         for e in ["z", "u"]:
             if self._needs_init(e, f"{e}_"):
                 setattr(
@@ -562,7 +572,7 @@ class FlowHMM(hmm.CategoricalHMM):
             Q_hat, probs_sums = self.model(nodes_tensor)
             loss = torch.nn.KLDivLoss(reduction="sum")(
                 torch.log(Q_hat), cooc_matrix
-            ) - lambda_ * probs_sums.sum() / self.n_components
+            ) - lambda_ * probs_sums.mean() * 0.9 ** (i+1)
             loss.backward()
             optimizer.step()
             if i % 100 == 0:  # TODO: think of it...
@@ -631,7 +641,7 @@ class FlowHMM(hmm.CategoricalHMM):
         if Xd is None:
             Xd = self.discretize(X, update_nodes)
             lengths_d = lengths
-        super()._init(Xd)
+        super()._init(X)
         self._init(X, lengths)
         if self.learning_alg == "em":
             super().fit(self.nodes.T[Xd], lengths_d)
